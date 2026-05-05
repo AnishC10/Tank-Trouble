@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tank Trouble</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #5a5a5a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  font-family: Arial, Helvetica, sans-serif;
+  user-select: none;
+  overflow: hidden;
+}
+#wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+}
+#titlebar {
+  background: #222;
+  padding: 7px 20px;
+  text-align: center;
+  border-bottom: 3px solid #111;
+}
+#titlebar h1 {
+  color: #fff;
+  font-size: 1.5rem;
+  font-weight: 900;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-shadow: 2px 2px 0 #000;
+}
+#game-area { position: relative; line-height: 0; }
+canvas#game { display: block; }
+#scorebar {
+  background: #222;
+  border-top: 3px solid #111;
+  display: flex;
+}
+.sp {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-right: 2px solid #111;
+}
+.sp:last-child { border-right: none; }
+.sp canvas { flex-shrink: 0; }
+.sp-info { display: flex; flex-direction: column; }
+.sp-label { font-size: 0.6rem; color: #999; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; }
+.sp-score { font-size: 1.6rem; font-weight: 900; color: #fff; line-height: 1.1; }
+.sp-keys { font-size: 0.58rem; color: #777; margin-top: 1px; }
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.5);
+  z-index: 10;
+}
+#overlay-box {
+  background: #1e1e1e;
+  border: 4px solid #555;
+  border-radius: 8px;
+  padding: 26px 44px;
+  text-align: center;
+}
+#ov-title {
+  font-size: 1.9rem;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+  margin-bottom: 8px;
+  text-shadow: 2px 2px 0 #000;
+}
+#ov-sub { font-size: 0.9rem; color: #bbb; letter-spacing: 0.08em; }
+</style>
+</head>
+<body>
+<div id="wrapper">
+  <div id="titlebar"><h1>🎯 Tank Trouble</h1></div>
+  <div id="game-area">
+    <canvas id="game"></canvas>
+    <div id="overlay">
+      <div id="overlay-box">
+        <div id="ov-title">TANK TROUBLE</div>
+        <div id="ov-sub">Press SPACE to play</div>
+      </div>
+    </div>
+  </div>
+  <div id="scorebar">
+    <div class="sp">
+      <canvas id="icon1" width="38" height="26"></canvas>
+      <div class="sp-info">
+        <span class="sp-label">Player 1</span>
+        <span class="sp-score" id="sc1">0</span>
+        <span class="sp-keys">E/S/D/F · Q = fire</span>
+      </div>
+    </div>
+    <div class="sp">
+      <canvas id="icon2" width="38" height="26"></canvas>
+      <div class="sp-info">
+        <span class="sp-label">Player 2</span>
+        <span class="sp-score" id="sc2">0</span>
+        <span class="sp-keys">← ↑ ↓ → · L = fire</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Kontra loaded first; game script runs after -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/kontra/9.0.0/kontra.min.js"></script>
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// All kontra access goes through the global `kontra` object (already loaded above)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const CELL  = 46;    // px per maze cell (corridor width)
+const MCOLS = 13;    // cells wide
+const MROWS = 11;    // cells tall
+const WTHK  = 8;     // wall thickness
+const CW    = MCOLS * CELL + WTHK;
+const CH    = MROWS * CELL + WTHK;
+
+const TANK_SPEED    = 2.0;
+const TANK_TURN     = 0.050;
+const BULLET_SPEED  = 5.2;
+const MAX_BOUNCES   = 20;
+const SHOOT_DELAY   = 38;   // frames between shots
+const MAX_BULLETS   = 5;
+
+const P1_COL = '#cc3322';  // red
+const P2_COL = '#339933';  // green
+
+// ── Canvas setup ──────────────────────────────────────────────────────────────
+const canvas = document.getElementById('game');
+canvas.width  = CW;
+canvas.height = CH;
+const ctx = canvas.getContext('2d');
+kontra.init('game');
+
+// ── Maze generation: recursive backtracker ────────────────────────────────────
+// Returns cells[r][c] = {n,e,s,w} where true = wall present
+function generateMaze(cols, rows) {
+  const cells = [];
+  for (let r = 0; r < rows; r++) {
+    cells[r] = [];
+    for (let c = 0; c < cols; c++) {
+      cells[r][c] = { n: true, e: true, s: true, w: true };
+    }
+  }
+  const visited = Array.from({length: rows}, () => new Array(cols).fill(false));
+  const stack = [{r: 0, c: 0}];
+  visited[0][0] = true;
+  const dirs = [
+    {dr:-1, dc: 0, from:'n', to:'s'},
+    {dr: 0, dc: 1, from:'e', to:'w'},
+    {dr: 1, dc: 0, from:'s', to:'n'},
+    {dr: 0, dc:-1, from:'w', to:'e'},
+  ];
+  while (stack.length > 0) {
+    const cur = stack[stack.length - 1];
+    const nbrs = [];
+    for (const d of dirs) {
+      const nr = cur.r + d.dr, nc = cur.c + d.dc;
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
+        nbrs.push({r: nr, c: nc, from: d.from, to: d.to});
+      }
+    }
+    if (nbrs.length === 0) { stack.pop(); continue; }
+    const next = nbrs[Math.floor(Math.random() * nbrs.length)];
+    cells[cur.r][cur.c][next.from] = false;   // remove wall from current side
+    cells[next.r][next.c][next.to] = false;   // remove wall from neighbour side
+    visited[next.r][next.c] = true;
+    stack.push({r: next.r, c: next.c});
+  }
+  return cells;
+}
+
+// ── Wall rects from maze ──────────────────────────────────────────────────────
+// Each wall is {x,y,w,h} in pixel space
+// We only emit south and east walls per cell (shared walls are not doubled)
+let wallRects = [];
+let mazeData  = null;
+
+function buildWalls() {
+  wallRects = [];
+  mazeData = generateMaze(MCOLS, MROWS);
+
+  // Border
+  wallRects.push({x:0,       y:0,       w:CW,   h:WTHK});
+  wallRects.push({x:0,       y:CH-WTHK, w:CW,   h:WTHK});
+  wallRects.push({x:0,       y:0,       w:WTHK, h:CH});
+  wallRects.push({x:CW-WTHK, y:0,       w:WTHK, h:CH});
+
+  for (let r = 0; r < MROWS; r++) {
+    for (let c = 0; c < MCOLS; c++) {
+      const cell = mazeData[r][c];
+      const x0 = WTHK + c * CELL;
+      const y0 = WTHK + r * CELL;
+
+      // South wall (only if not last row — last row is the border)
+      if (cell.s && r < MROWS - 1) {
+        wallRects.push({x: x0, y: y0 + CELL, w: CELL + WTHK, h: WTHK});
+      }
+      // East wall (only if not last col)
+      if (cell.e && c < MCOLS - 1) {
+        wallRects.push({x: x0 + CELL, y: y0, w: WTHK, h: CELL + WTHK});
+      }
+    }
+  }
+}
+
+// ── AABB helpers ──────────────────────────────────────────────────────────────
+function aabbHit(ax,ay,aw,ah, bx,by,bw,bh) {
+  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
+}
+
+// ── Tank movement + wall push-out ─────────────────────────────────────────────
+// Uses axis-aligned bounding box (radius = 12px square) for reliable collisions
+const TANK_R = 12; // half-size of collision square
+
+function pushOutTank(obj) {
+  // Run multiple passes so we don't miss corner cases
+  for (let pass = 0; pass < 3; pass++) {
+    for (const w of wallRects) {
+      const ox = obj.x - TANK_R, oy = obj.y - TANK_R;
+      const ow = TANK_R*2,       oh = TANK_R*2;
+      if (!aabbHit(ox,oy,ow,oh, w.x,w.y,w.w,w.h)) continue;
+
+      const overL = (ox+ow) - w.x;
+      const overR = (w.x+w.w) - ox;
+      const overT = (oy+oh) - w.y;
+      const overB = (w.y+w.h) - oy;
+      const minX = Math.min(overL, overR);
+      const minY = Math.min(overT, overB);
+      if (minX < minY) {
+        obj.x += (overL < overR) ? -overL : overR;
+      } else {
+        obj.y += (overT < overB) ? -overT : overB;
+      }
+    }
+  }
+  // Hard clamp to canvas
+  obj.x = Math.max(TANK_R + WTHK, Math.min(CW - TANK_R - WTHK, obj.x));
+  obj.y = Math.max(TANK_R + WTHK, Math.min(CH - TANK_R - WTHK, obj.y));
+}
+
+// ── Tank drawing ──────────────────────────────────────────────────────────────
+function drawTank(c, col, x, y, angle) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(angle);
+
+  // Treads
+  c.fillStyle = '#2a2a2a';
+  c.fillRect(-14, -13, 28, 7);
+  c.fillRect(-14,  6,  28, 7);
+
+  // Tread notches
+  c.fillStyle = '#111';
+  for (let i = -13; i < 15; i += 5) {
+    c.fillRect(i, -13, 3, 7);
+    c.fillRect(i,   6, 3, 7);
+  }
+
+  // Body
+  c.fillStyle = col;
+  c.fillRect(-12, -8, 24, 16);
+
+  // Body highlight
+  c.fillStyle = 'rgba(255,255,255,0.2)';
+  c.fillRect(-11, -7, 22, 5);
+
+  // Body border
+  c.strokeStyle = 'rgba(0,0,0,0.45)';
+  c.lineWidth = 1.5;
+  c.strokeRect(-12, -8, 24, 16);
+
+  // Turret base
+  c.fillStyle = col;
+  c.strokeStyle = 'rgba(0,0,0,0.5)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.arc(0, 0, 8, 0, Math.PI * 2);
+  c.fill();
+  c.stroke();
+
+  // Barrel — drawn as rounded rect manually (no roundRect for compat)
+  const bx = 5, by = -3, bw = 17, bh = 6, br = 2;
+  c.fillStyle = '#aaa';
+  c.strokeStyle = '#555';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(bx+br, by);
+  c.lineTo(bx+bw-br, by);
+  c.arcTo(bx+bw, by, bx+bw, by+br, br);
+  c.lineTo(bx+bw, by+bh-br);
+  c.arcTo(bx+bw, by+bh, bx+bw-br, by+bh, br);
+  c.lineTo(bx+br, by+bh);
+  c.arcTo(bx, by+bh, bx, by+bh-br, br);
+  c.lineTo(bx, by+br);
+  c.arcTo(bx, by, bx+br, by, br);
+  c.closePath();
+  c.fill();
+  c.stroke();
+
+  c.restore();
+}
+
+// ── Maze drawing ──────────────────────────────────────────────────────────────
+function drawMaze() {
+  // Floor
+  ctx.fillStyle = '#c8c8b0';
+  ctx.fillRect(0, 0, CW, CH);
+
+  // Subtle grid lines on floor
+  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+  ctx.lineWidth = 1;
+  for (let c = 0; c <= MCOLS; c++) {
+    ctx.beginPath();
+    ctx.moveTo(WTHK + c*CELL, 0);
+    ctx.lineTo(WTHK + c*CELL, CH);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= MROWS; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, WTHK + r*CELL);
+    ctx.lineTo(CW, WTHK + r*CELL);
+    ctx.stroke();
+  }
+
+  // Walls
+  for (const w of wallRects) {
+    // Main fill
+    ctx.fillStyle = '#5a5a5a';
+    ctx.fillRect(w.x, w.y, w.w, w.h);
+    // Top/left lighter edge
+    ctx.fillStyle = '#777';
+    ctx.fillRect(w.x, w.y, w.w, 2);
+    ctx.fillRect(w.x, w.y, 2, w.h);
+    // Bottom/right darker edge
+    ctx.fillStyle = '#3a3a3a';
+    ctx.fillRect(w.x, w.y+w.h-2, w.w, 2);
+    ctx.fillRect(w.x+w.w-2, w.y, 2, w.h);
+  }
+
+  // Corner posts at every grid intersection
+  ctx.fillStyle = '#444';
+  for (let r = 0; r <= MROWS; r++) {
+    for (let c = 0; c <= MCOLS; c++) {
+      ctx.fillRect(c * CELL, r * CELL, WTHK, WTHK);
+    }
+  }
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+const particles = [];
+
+function spawnExplosion(x, y, col) {
+  for (let i = 0; i < 30; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1.5 + Math.random() * 4.5;
+    particles.push({
+      x, y,
+      vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+      r: 2 + Math.random()*5,
+      life: 1,
+      decay: 0.022 + Math.random()*0.04,
+      col,
+    });
+  }
+  // Shockwave ring particles
+  for (let i = 0; i < 12; i++) {
+    const a = (Math.PI*2*i/12);
+    particles.push({
+      x, y,
+      vx: Math.cos(a)*6, vy: Math.sin(a)*6,
+      r: 4, life: 0.7, decay: 0.07, col: '#ffcc44',
+    });
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length-1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx; p.y += p.vy;
+    p.vx *= 0.88; p.vy *= 0.88;
+    p.life -= p.decay;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.save();
+    ctx.globalAlpha = p.life * p.life;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2);
+    ctx.fillStyle = p.col;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+// ── Bullet ────────────────────────────────────────────────────────────────────
+class Bullet {
+  constructor(x, y, angle, ownerIdx) {
+    // Start bullet well ahead of barrel tip
+    this.x = x + Math.cos(angle) * 22;
+    this.y = y + Math.sin(angle) * 22;
+    this.vx = Math.cos(angle) * BULLET_SPEED;
+    this.vy = Math.sin(angle) * BULLET_SPEED;
+    this.ownerIdx = ownerIdx;  // 0 or 1
+    this.alive = true;
+    this.bounces = 0;
+    this.r = 5;
+    this.trail = [];
+    // Track age so we don't self-collide in first few frames
+    this.age = 0;
+  }
+
+  update() {
+    this.age++;
+    this.trail.unshift({x: this.x, y: this.y});
+    if (this.trail.length > 7) this.trail.pop();
+
+    const nx = this.x + this.vx;
+    const ny = this.y + this.vy;
+    let hitX = false, hitY = false;
+
+    for (const w of wallRects) {
+      if (aabbHit(nx-this.r, this.y-this.r, this.r*2, this.r*2, w.x,w.y,w.w,w.h)) hitX = true;
+      if (aabbHit(this.x-this.r, ny-this.r, this.r*2, this.r*2, w.x,w.y,w.w,w.h)) hitY = true;
+    }
+
+    if (hitX) this.vx = -this.vx;
+    if (hitY) this.vy = -this.vy;
+    if (hitX || hitY) this.bounces++;
+    if (this.bounces > MAX_BOUNCES) { this.alive = false; return; }
+
+    this.x += this.vx;
+    this.y += this.vy;
+
+    // Canvas boundary bounce
+    if (this.x - this.r < 0)      { this.x = this.r;       this.vx =  Math.abs(this.vx); this.bounces++; }
+    if (this.x + this.r > CW)     { this.x = CW - this.r;  this.vx = -Math.abs(this.vx); this.bounces++; }
+    if (this.y - this.r < 0)      { this.y = this.r;       this.vy =  Math.abs(this.vy); this.bounces++; }
+    if (this.y + this.r > CH)     { this.y = CH - this.r;  this.vy = -Math.abs(this.vy); this.bounces++; }
+  }
+
+  draw() {
+    // Trail
+    for (let i = this.trail.length-1; i >= 0; i--) {
+      const alpha = (1 - i/this.trail.length) * 0.3;
+      ctx.beginPath();
+      ctx.arc(this.trail[i].x, this.trail[i].y, this.r * (1 - i/this.trail.length) * 0.8, 0, Math.PI*2);
+      ctx.fillStyle = `rgba(255,180,20,${alpha})`;
+      ctx.fill();
+    }
+    // Shell
+    const g = ctx.createRadialGradient(this.x-1.5, this.y-1.5, 0.5, this.x, this.y, this.r);
+    g.addColorStop(0, '#fff7a0');
+    g.addColorStop(0.4, '#ffaa00');
+    g.addColorStop(1, '#883300');
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
+    ctx.fillStyle = g;
+    ctx.fill();
+    ctx.strokeStyle = '#441100';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+}
+
+// ── Tank ──────────────────────────────────────────────────────────────────────
+class Tank {
+  constructor(x, y, angle, color, idx, controls) {
+    this.x = x; this.y = y;
+    this.angle = angle;
+    this.color = color;
+    this.idx = idx;
+    this.controls = controls;
+    this.alive = true;
+    this.bullets = [];
+    this.cooldown = 0;
+  }
+
+  update(keys) {
+    if (!this.alive) return;
+    if (keys[this.controls.left])  this.angle -= TANK_TURN;
+    if (keys[this.controls.right]) this.angle += TANK_TURN;
+
+    if (keys[this.controls.up]) {
+      this.x += Math.cos(this.angle) * TANK_SPEED;
+      this.y += Math.sin(this.angle) * TANK_SPEED;
+    }
+    if (keys[this.controls.down]) {
+      this.x -= Math.cos(this.angle) * TANK_SPEED * 0.65;
+      this.y -= Math.sin(this.angle) * TANK_SPEED * 0.65;
+    }
+    pushOutTank(this);
+
+    if (this.cooldown > 0) this.cooldown--;
+    if (keys[this.controls.shoot] && this.cooldown === 0 && this.bullets.length < MAX_BULLETS) {
+      this.bullets.push(new Bullet(this.x, this.y, this.angle, this.idx));
+      this.cooldown = SHOOT_DELAY;
+    }
+
+    for (const b of this.bullets) b.update();
+    this.bullets = this.bullets.filter(b => b.alive);
+  }
+
+  draw() {
+    for (const b of this.bullets) b.draw();
+    if (this.alive) drawTank(ctx, this.color, this.x, this.y, this.angle);
+  }
+}
+
+// ── Spawn helper ──────────────────────────────────────────────────────────────
+// Shuffle an array of valid center positions, pick ones far enough apart
+function getSpawnPositions() {
+  const candidates = [];
+  for (let r = 0; r < MROWS; r++) {
+    for (let c = 0; c < MCOLS; c++) {
+      const cx = WTHK + c * CELL + CELL/2;
+      const cy = WTHK + r * CELL + CELL/2;
+      // Quick check: is center well inside free space?
+      let blocked = false;
+      for (const w of wallRects) {
+        if (aabbHit(cx-TANK_R, cy-TANK_R, TANK_R*2, TANK_R*2, w.x,w.y,w.w,w.h)) {
+          blocked = true; break;
+        }
+      }
+      if (!blocked) candidates.push({x: cx, y: cy});
+    }
+  }
+  // Fisher-Yates shuffle
+  for (let i = candidates.length-1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i+1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+  // Pick two that are at least 4 cells apart
+  const minDist = CELL * 4;
+  let a = candidates[0];
+  let b = null;
+  for (const c of candidates) {
+    const dx = c.x-a.x, dy = c.y-a.y;
+    if (Math.sqrt(dx*dx+dy*dy) >= minDist) { b = c; break; }
+  }
+  if (!b) b = candidates[candidates.length-1]; // fallback
+  return [a, b];
+}
+
+// ── Game state ────────────────────────────────────────────────────────────────
+let tank1, tank2;
+let score1 = 0, score2 = 0;
+let keys   = {};
+let state  = 'menu';    // 'menu' | 'playing' | 'roundover'
+let roundOverTimer = 0;
+
+function setOverlay(title, titleColor, sub, show) {
+  const ov = document.getElementById('overlay');
+  ov.style.display = show ? 'flex' : 'none';
+  document.getElementById('ov-title').textContent = title;
+  document.getElementById('ov-title').style.color = titleColor;
+  document.getElementById('ov-sub').textContent   = sub;
+}
+
+function startRound() {
+  buildWalls();
+  const [s1, s2] = getSpawnPositions();
+  tank1 = new Tank(s1.x, s1.y, Math.random()*Math.PI*2, P1_COL, 0,
+    {up:'e', down:'d', left:'s', right:'f', shoot:'q'});
+  tank2 = new Tank(s2.x, s2.y, Math.random()*Math.PI*2, P2_COL, 1,
+    {up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', shoot:'l'});
+  particles.length = 0;
+  state = 'playing';
+  setOverlay('', '#fff', '', false);
+}
+
+function resolveHits() {
+  let t1hit = false, t2hit = false;
+
+  const checkBullets = (shooter, target) => {
+    for (const b of shooter.bullets) {
+      if (!b.alive) continue;
+      // Don't let bullets hit their own tank in the first 8 frames
+      const canSelfHit = (b.ownerIdx === shooter.idx) ? b.age > 8 : true;
+
+      if (target.alive) {
+        const dx = b.x - target.x, dy = b.y - target.y;
+        if (dx*dx + dy*dy < (TANK_R + b.r)*(TANK_R + b.r)) {
+          b.alive = false;
+          if (shooter.idx === 0) t2hit = true;
+          else                   t1hit = true;
+        }
+      }
+      // Self-hit (bounced shot comes back)
+      if (canSelfHit && b.bounces > 0 && shooter.alive) {
+        const dx = b.x - shooter.x, dy = b.y - shooter.y;
+        if (dx*dx + dy*dy < (TANK_R + b.r)*(TANK_R + b.r)) {
+          b.alive = false;
+          if (shooter.idx === 0) t1hit = true;
+          else                   t2hit = true;
+        }
+      }
+    }
+  };
+
+  checkBullets(tank1, tank2);
+  checkBullets(tank2, tank1);
+
+  if (t1hit || t2hit) {
+    if (t1hit) { tank1.alive = false; spawnExplosion(tank1.x, tank1.y, P1_COL); }
+    if (t2hit) { tank2.alive = false; spawnExplosion(tank2.x, tank2.y, P2_COL); }
+    spawnExplosion(t1hit ? tank1.x : tank2.x, t1hit ? tank1.y : tank2.y, '#ff9900');
+
+    if (t1hit && t2hit) {
+      // Draw — no points
+    } else if (t2hit) {
+      score1++;
+      document.getElementById('sc1').textContent = score1;
+    } else {
+      score2++;
+      document.getElementById('sc2').textContent = score2;
+    }
+
+    const msg = (t1hit && t2hit) ? 'DRAW!' : t2hit ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!';
+    const col = (t1hit && t2hit) ? '#fff' : t2hit ? P1_COL : P2_COL;
+    setOverlay(msg, col, 'Next round starting…', true);
+    state = 'roundover';
+    roundOverTimer = 160;
+  }
+}
+
+// ── Score card icons ──────────────────────────────────────────────────────────
+function drawIcons() {
+  drawTank(document.getElementById('icon1').getContext('2d'), P1_COL, 19, 13, 0);
+  drawTank(document.getElementById('icon2').getContext('2d'), P2_COL, 19, 13, 0);
+}
+drawIcons();
+
+// ── Kontra GameLoop ───────────────────────────────────────────────────────────
+const loop = kontra.GameLoop({
+  update() {
+    if (state === 'playing') {
+      tank1.update(keys);
+      tank2.update(keys);
+      resolveHits();
+    }
+    if (state === 'roundover') {
+      if (--roundOverTimer <= 0) startRound();
+    }
+    updateParticles();
+  },
+  render() {
+    ctx.clearRect(0, 0, CW, CH);
+    drawMaze();
+    if (tank1) tank1.draw();
+    if (tank2) tank2.draw();
+    drawParticles();
+  }
+});
+loop.start();
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  if (e.key === ' ' && state === 'menu') startRound();
+});
+document.addEventListener('keyup', e => { keys[e.key] = false; });
+</script>
+</body>
+</html>
