@@ -52,7 +52,6 @@ README.md
 
 ## Known Limitations
 
-- Two players only (local, same keyboard)
+- Two players only 
 - No sound
-- No power-ups
 - No AI opponent
