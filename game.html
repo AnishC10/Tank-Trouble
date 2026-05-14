@@ -1,687 +1,539 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Tank Trouble</title>
-<style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-  background: #5a5a5a;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-family: Arial, Helvetica, sans-serif;
-  user-select: none;
-  overflow: hidden;
-}
-#wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  box-shadow: 0 8px 40px rgba(0,0,0,0.7);
-}
-#titlebar {
-  background: #222;
-  padding: 7px 20px;
-  text-align: center;
-  border-bottom: 3px solid #111;
-}
-#titlebar h1 {
-  color: #fff;
-  font-size: 1.5rem;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  text-shadow: 2px 2px 0 #000;
-}
-#game-area { position: relative; line-height: 0; }
-canvas#game { display: block; }
-#scorebar {
-  background: #222;
-  border-top: 3px solid #111;
-  display: flex;
-}
-.sp {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 16px;
-  border-right: 2px solid #111;
-}
-.sp:last-child { border-right: none; }
-.sp canvas { flex-shrink: 0; }
-.sp-info { display: flex; flex-direction: column; }
-.sp-label { font-size: 0.6rem; color: #999; font-weight: bold; letter-spacing: 0.1em; text-transform: uppercase; }
-.sp-score { font-size: 1.6rem; font-weight: 900; color: #fff; line-height: 1.1; }
-.sp-keys { font-size: 0.58rem; color: #777; margin-top: 1px; }
-
-#overlay {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0,0,0,0.5);
-  z-index: 10;
-}
-#overlay-box {
-  background: #1e1e1e;
-  border: 4px solid #555;
-  border-radius: 8px;
-  padding: 26px 44px;
-  text-align: center;
-}
-#ov-title {
-  font-size: 1.9rem;
-  font-weight: 900;
-  color: #fff;
-  text-transform: uppercase;
-  letter-spacing: 0.15em;
-  margin-bottom: 8px;
-  text-shadow: 2px 2px 0 #000;
-}
-#ov-sub { font-size: 0.9rem; color: #bbb; letter-spacing: 0.08em; }
-</style>
+  <meta charset="UTF-8">
+  <title>TANK TROUBLE</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#080c14;--panel:#0d1320;--border:#1e2d45;--p1:#00e5ff;--p2:#ff3d71;--accent:#f5c518;--textdim:#4a6080;--text:#c8d8f0;}
+    *{margin:0;padding:0;box-sizing:border-box;}
+    html,body{width:100%;height:100%;background:var(--bg);overflow:hidden;}
+    body{font-family:'Rajdhani',sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;}
+    body::after{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.025) 2px,rgba(0,0,0,.025) 4px);}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+    @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
+    @keyframes dotP{0%,80%,100%{transform:scale(0);opacity:.3}40%{transform:scale(1);opacity:1}}
+    .blink{animation:blink 1.4s ease-in-out infinite;}
+    .dot{width:11px;height:11px;border-radius:50%;background:var(--accent);display:inline-block;animation:dotP 1.4s ease-in-out infinite;}
+    #lobby{display:flex;flex-direction:column;align-items:center;gap:24px;animation:fadeUp .5s ease;}
+    .game-title{font-family:'Orbitron',sans-serif;font-size:2.8rem;font-weight:900;color:var(--accent);letter-spacing:8px;text-shadow:0 0 30px rgba(245,197,24,.5),0 0 60px rgba(245,197,24,.15);}
+    .game-sub{font-size:.85rem;letter-spacing:4px;color:var(--textdim);text-transform:uppercase;text-align:center;}
+    .btn{font-family:'Orbitron',sans-serif;font-size:.75rem;letter-spacing:2px;padding:10px 18px;border-radius:6px;border:none;cursor:pointer;text-transform:uppercase;font-weight:700;transition:all .15s;}
+    .btn-y{background:var(--accent);color:#000;box-shadow:0 0 18px rgba(245,197,24,.2);}
+    .btn-y:hover{background:#ffd740;box-shadow:0 0 28px rgba(245,197,24,.4);}
+    .btn-g{background:transparent;color:var(--text);border:1px solid var(--border);}
+    .btn-g:hover{border-color:rgba(200,216,240,.4);}
+    .or-line{display:flex;align-items:center;gap:10px;color:var(--textdim);font-size:.72rem;letter-spacing:2px;width:280px;}
+    .or-line::before,.or-line::after{content:'';flex:1;height:1px;background:var(--border);}
+    .lobby-hint{font-size:.72rem;color:var(--textdim);text-align:center;max-width:340px;line-height:1.9;}
+    #waiting{display:none;flex-direction:column;align-items:center;gap:16px;animation:fadeUp .3s ease;}
+    #waiting.on{display:flex;}
+    .wait-title{font-family:'Orbitron',sans-serif;font-size:.9rem;color:var(--textdim);letter-spacing:4px;}
+    .dots-row{display:flex;gap:8px;}
+    #hud{display:none;width:780px;flex-direction:column;}
+    #hud.on{display:flex;}
+    .hud-t{background:var(--panel);border:1px solid var(--border);border-bottom:none;border-radius:10px 10px 0 0;padding:9px 18px;display:flex;align-items:center;justify-content:space-between;}
+    .hp{display:flex;align-items:center;gap:9px;font-family:'Orbitron',sans-serif;font-size:.7rem;letter-spacing:2px;}
+    .hdot{width:9px;height:9px;border-radius:50%;}
+    .hscore{font-size:1.45rem;font-weight:700;min-width:26px;text-align:center;}
+    .hlabel{font-size:.6rem;color:var(--textdim);letter-spacing:1px;}
+    .hcenter{font-family:'Orbitron',sans-serif;font-size:.62rem;letter-spacing:3px;color:var(--textdim);text-align:center;line-height:1.8;}
+    canvas{display:block;border-left:1px solid var(--border);border-right:1px solid var(--border);}
+    .hud-b{background:var(--panel);border:1px solid var(--border);border-top:none;border-radius:0 0 10px 10px;padding:6px 18px;display:flex;align-items:center;justify-content:space-between;font-size:.65rem;color:var(--textdim);letter-spacing:1px;}
+    .pu-hud{display:flex;align-items:center;gap:5px;}
+    .pu-slot{width:26px;height:26px;border-radius:5px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.85rem;background:#0a1220;}
+    .pu-slot.active{border-color:var(--accent);background:#1a2530;}
+    #ro{position:fixed;inset:0;background:rgba(4,8,16,.78);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(6px);}
+    #ro.on{display:flex;}
+    .diag-row{display:flex;align-items:center;gap:10px;font-size:.78rem;padding:4px 0;border-bottom:1px solid #0d1825;}
+    .diag-row:last-child{border-bottom:none;}
+    .diag-icon{font-size:1rem;width:20px;text-align:center;flex-shrink:0;}
+    .diag-label{color:#4a6080;flex:1;letter-spacing:.5px;}
+    .diag-status{font-family:'Orbitron',sans-serif;font-size:.62rem;letter-spacing:1px;text-align:right;}
+    .ds-ok{color:#4caf50;} .ds-fail{color:#ff3d71;} .ds-spin{color:#f5c518;}
+    .rbox{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:38px 60px;text-align:center;box-shadow:0 0 80px rgba(0,0,0,.9);}
+    .rwinner{font-family:'Orbitron',sans-serif;font-size:2rem;font-weight:900;letter-spacing:4px;margin-bottom:8px;}
+    .rsub{font-size:.88rem;color:var(--textdim);letter-spacing:2px;}
+  </style>
 </head>
 <body>
-<div id="wrapper">
-  <div id="titlebar"><h1>🎯 Tank Trouble</h1></div>
-  <div id="game-area">
-    <canvas id="game"></canvas>
-    <div id="overlay">
-      <div id="overlay-box">
-        <div id="ov-title">TANK TROUBLE</div>
-        <div id="ov-sub">Press SPACE to play</div>
-      </div>
+
+<div id="lobby">
+  <div style="text-align:center">
+    <div class="game-title">TANK TROUBLE</div>
+    <div class="game-sub">Online Multiplayer · Power-Ups · Bullets bounce 20×</div>
+  </div>
+  <button class="btn btn-y" id="onlineBtn" style="width:260px;font-size:.9rem;padding:16px 20px;">🌐 Play Online</button>
+  <div class="or-line">or</div>
+  <button class="btn btn-g" id="localBtn" style="width:200px;">🕹 Local 2-Player</button>
+  <div class="lobby-hint">Click <b style="color:var(--accent)">Play Online</b> — if someone else is waiting you'll connect instantly. Otherwise wait for the next player who opens this page.</div>
+</div>
+
+<div id="waiting">
+  <div class="wait-title" id="waitTitle">Connecting…</div>
+  <div id="diagBox" style="background:#0a1220;border:1px solid #1e2d45;border-radius:10px;padding:18px 24px;width:420px;display:flex;flex-direction:column;gap:8px;margin:4px 0;">
+    <div class="diag-row" id="d-ws">
+      <span class="diag-icon">⏳</span>
+      <span class="diag-label">WebSocket server connection</span>
+      <span class="diag-status" id="ds-ws">waiting…</span>
+    </div>
+    <div class="diag-row" id="d-role">
+      <span class="diag-icon">⏳</span>
+      <span class="diag-label">Player role (host or joiner)</span>
+      <span class="diag-status" id="ds-role">waiting…</span>
+    </div>
+    <div class="diag-row" id="d-lobby">
+      <span class="diag-icon">⏳</span>
+      <span class="diag-label">Lobby — finding opponent</span>
+      <span class="diag-status" id="ds-lobby">waiting…</span>
+    </div>
+    <div class="diag-row" id="d-game">
+      <span class="diag-icon">⏳</span>
+      <span class="diag-label">Game start</span>
+      <span class="diag-status" id="ds-game">waiting…</span>
     </div>
   </div>
-  <div id="scorebar">
-    <div class="sp">
-      <canvas id="icon1" width="38" height="26"></canvas>
-      <div class="sp-info">
-        <span class="sp-label">Player 1</span>
-        <span class="sp-score" id="sc1">0</span>
-        <span class="sp-keys">E/S/D/F · Q = fire</span>
-      </div>
+  <div id="waitMsg" style="color:#f5c518;font-size:.78rem;letter-spacing:1px;min-height:18px;text-align:center;max-width:420px;padding:0 8px;line-height:1.6;"></div>
+  <button class="btn btn-g" id="cancelBtn" style="margin-top:4px;">Cancel</button>
+</div>
+
+<div id="hud">
+  <div class="hud-t">
+    <div class="hp">
+      <div class="hdot" style="background:var(--p1);box-shadow:0 0 7px var(--p1)"></div>
+      <div><div style="color:var(--p1)">PLAYER 1</div><div class="hlabel" id="p1lbl">ESDF · Q</div></div>
+      <div class="hscore" style="color:var(--p1)" id="sc1">0</div>
+      <div class="pu-hud" id="pu1"></div>
     </div>
-    <div class="sp">
-      <canvas id="icon2" width="38" height="26"></canvas>
-      <div class="sp-info">
-        <span class="sp-label">Player 2</span>
-        <span class="sp-score" id="sc2">0</span>
-        <span class="sp-keys">← ↑ ↓ → · L = fire</span>
-      </div>
+    <div class="hcenter">TANK TROUBLE<br><span id="pingEl" style="font-size:.58rem"></span></div>
+    <div class="hp">
+      <div class="pu-hud" id="pu2"></div>
+      <div class="hscore" style="color:var(--p2)" id="sc2">0</div>
+      <div style="text-align:right"><div style="color:var(--p2)">PLAYER 2</div><div class="hlabel" id="p2lbl">ARROWS · M</div></div>
+      <div class="hdot" style="background:var(--p2);box-shadow:0 0 7px var(--p2)"></div>
     </div>
+  </div>
+  <canvas id="gc" width="780" height="520"></canvas>
+  <div class="hud-b">
+    <span id="c1h" style="color:#003d4a">P1: ESDF move · Q fire</span>
+    <span id="modeLbl">LOCAL</span>
+    <span id="c2h" style="color:#4a0020">P2: Arrows · M fire</span>
   </div>
 </div>
 
-<!-- Kontra loaded first; game script runs after -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/kontra/9.0.0/kontra.min.js"></script>
+<div id="ro">
+  <div class="rbox">
+    <div class="rwinner" id="rwText"></div>
+    <div class="rsub">Next round starting…</div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.2/peerjs.min.js"></script>
 <script>
-// ─────────────────────────────────────────────────────────────────────────────
-// All kontra access goes through the global `kontra` object (already loaded above)
-// ─────────────────────────────────────────────────────────────────────────────
+  'use strict';
+  const COLS=15,ROWS=10,CELL=52,W=COLS*CELL,H=ROWS*CELL;
+  const WALL_T=4,TANK_R=13,BULLET_R=4;
+  const BULLET_SPD=300,TANK_SPD=95,TANK_ROT=2.3;
+  const MAX_BOUNCE=20,MAX_BULS=5,RESPAWN=3,FIRE_CD=0.32;
+  const C1='#00e5ff',C2='#ff3d71';
+  const P1K={up:'KeyE',down:'KeyD',left:'KeyS',right:'KeyF',fire:'KeyQ'};
+  const P2K={up:'ArrowUp',down:'ArrowDown',left:'ArrowLeft',right:'ArrowRight',fire:'KeyM'};
 
-// ── Constants ─────────────────────────────────────────────────────────────────
-const CELL  = 46;    // px per maze cell (corridor width)
-const MCOLS = 13;    // cells wide
-const MROWS = 11;    // cells tall
-const WTHK  = 8;     // wall thickness
-const CW    = MCOLS * CELL + WTHK;
-const CH    = MROWS * CELL + WTHK;
+  // ── MAZE ──────────────────────────────────────────────
+  function sRng(s){let v=s>>>0;return()=>{v=(Math.imul(1664525,v)+1013904223)>>>0;return v/0x100000000;};}
+  function shuffle(a,r){for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+  function makeMaze(seed){
+    const rng=sRng(seed);
+    const c=Array.from({length:ROWS},()=>Array.from({length:COLS},()=>({n:1,s:1,e:1,w:1,v:0})));
+    function carve(r,cc){c[r][cc].v=1;const d=[{dr:-1,dc:0,f:'s',t:'n'},{dr:1,dc:0,f:'n',t:'s'},{dr:0,dc:1,f:'w',t:'e'},{dr:0,dc:-1,f:'e',t:'w'}];shuffle(d,rng);for(const{dr,dc,f,t}of d){const nr=r+dr,nc=cc+dc;if(nr>=0&&nr<ROWS&&nc>=0&&nc<COLS&&!c[nr][nc].v){c[r][cc][t]=0;c[nr][nc][f]=0;carve(nr,nc);}}}
+    carve(Math.floor(rng()*ROWS),Math.floor(rng()*COLS));return c;
+  }
+  function buildWalls(cells){
+    const w=[];
+    for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){const x=c*CELL,y=r*CELL;if(cells[r][c].s)w.push({x1:x,y1:y+CELL,x2:x+CELL,y2:y+CELL});if(cells[r][c].e)w.push({x1:x+CELL,y1:y,x2:x+CELL,y2:y+CELL});}
+    w.push({x1:0,y1:0,x2:W,y2:0},{x1:0,y1:H,x2:W,y2:H},{x1:0,y1:0,x2:0,y2:H},{x1:W,y1:0,x2:W,y2:H});return w;
+  }
 
-const TANK_SPEED    = 2.0;
-const TANK_TURN     = 0.050;
-const BULLET_SPEED  = 5.2;
-const MAX_BOUNCES   = 20;
-const SHOOT_DELAY   = 38;   // frames between shots
-const MAX_BULLETS   = 5;
+  // ── PARTICLES ─────────────────────────────────────────
+  let parts=[];
+  function boom(x,y,col){for(let i=0;i<36;i++){const a=Math.random()*Math.PI*2,s=80+Math.random()*220;parts.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,dec:.8+Math.random()*.6,r:3+Math.random()*5,col});}parts.push({x,y,life:1,dec:2.5,r:0,maxR:50,col,ring:true});}
+  function tickParts(dt){for(const p of parts){if(!p.ring){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vx*=.87;p.vy*=.87;}p.life-=p.dec*dt;if(p.ring)p.r=p.maxR*(1-p.life);}parts=parts.filter(p=>p.life>0);}
+  function drawParts(ctx){for(const p of parts){ctx.save();ctx.globalAlpha=Math.max(0,p.ring?p.life*.8:p.life*.85);if(p.ring){ctx.strokeStyle=p.col;ctx.lineWidth=2;ctx.shadowColor=p.col;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.1,p.r),0,Math.PI*2);ctx.stroke();}else{ctx.fillStyle=p.col;ctx.shadowColor=p.col;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(p.x,p.y,Math.max(.1,p.r),0,Math.PI*2);ctx.fill();}ctx.restore();}}
 
-const P1_COL = '#cc3322';  // red
-const P2_COL = '#339933';  // green
+  // ── POWERUPS ──────────────────────────────────────────
+  const PU_TYPES=[{id:'missile',label:'🚀',col:'#ff6600'},{id:'laser',label:'⚡',col:'#00ffaa'},{id:'triple',label:'💥',col:'#ff44ff'},{id:'speed',label:'💨',col:'#ffff00'},{id:'shield',label:'🛡',col:'#4488ff'},{id:'bigbullet',label:'💣',col:'#ff8800'}];
+  class PowerUpItem{
+    constructor(x,y,type,pulse){this.x=x;this.y=y;this.type=type;this.alive=true;this.pulse=pulse||Math.random()*Math.PI*2;this.r=16;}
+    update(dt){this.pulse+=dt*2.5;}
+    draw(ctx){if(!this.alive)return;const g=0.6+Math.sin(this.pulse)*0.4;ctx.save();ctx.globalAlpha=g;ctx.strokeStyle=this.type.col;ctx.lineWidth=2;ctx.shadowColor=this.type.col;ctx.shadowBlur=12;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=g*.3;ctx.fillStyle=this.type.col;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.globalAlpha=g;ctx.shadowBlur=0;ctx.font='16px serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#fff';ctx.fillText(this.type.label,this.x,this.y+1);ctx.restore();}
+    toJSON(){return{x:this.x,y:this.y,typeId:this.type.id,alive:this.alive,pulse:this.pulse};}
+  }
 
-// ── Canvas setup ──────────────────────────────────────────────────────────────
-const canvas = document.getElementById('game');
-canvas.width  = CW;
-canvas.height = CH;
-const ctx = canvas.getContext('2d');
-kontra.init('game');
+  // ── LASER ─────────────────────────────────────────────
+  let walls=[];
+  class Laser{
+    constructor(x,y,angle,owner,col){this.x=x;this.y=y;this.angle=angle;this.owner=owner;this.col=col;this.life=1;this.age=0;this.dead=false;this.segs=castLaser(x,y,angle,8);}
+    update(dt){this.age+=dt;this.life-=dt*1.6;if(this.life<=0)this.dead=true;}
+    draw(ctx){ctx.save();ctx.globalAlpha=Math.max(0,this.life);ctx.strokeStyle=this.col;ctx.lineWidth=3;ctx.shadowColor=this.col;ctx.shadowBlur=16;ctx.beginPath();for(let i=0;i<this.segs.length-1;i++){ctx.moveTo(this.segs[i].x,this.segs[i].y);ctx.lineTo(this.segs[i+1].x,this.segs[i+1].y);}ctx.stroke();ctx.lineWidth=1;ctx.strokeStyle='#fff';ctx.beginPath();for(let i=0;i<this.segs.length-1;i++){ctx.moveTo(this.segs[i].x,this.segs[i].y);ctx.lineTo(this.segs[i+1].x,this.segs[i+1].y);}ctx.stroke();ctx.restore();}
+    hitsPoint(px,py,r){for(let i=0;i<this.segs.length-1;i++){if(dPS(px,py,this.segs[i],this.segs[i+1])<r+4)return true;}return false;}
+  }
+  function castLaser(x,y,angle,bounces){const pts=[{x,y}];let ax=x,ay=y,adx=Math.cos(angle),ady=Math.sin(angle);for(let b=0;b<bounces;b++){let minT=Infinity,hw=null;for(const w of walls){const t=rWI(ax,ay,adx,ady,w);if(t>1&&t<minT){minT=t;hw=w;}}if(!hw||minT>2000)break;ax+=adx*minT;ay+=ady*minT;pts.push({x:ax,y:ay});if(hw.y1===hw.y2)ady=-ady;else adx=-adx;}return pts;}
+  function rWI(rx,ry,rdx,rdy,w){const wx=w.x2-w.x1,wy=w.y2-w.y1,dn=rdx*wy-rdy*wx;if(Math.abs(dn)<.0001)return Infinity;const t=((w.x1-rx)*wy-(w.y1-ry)*wx)/dn,u=((w.x1-rx)*rdy-(w.y1-ry)*rdx)/dn;return(t>.5&&u>=0&&u<=1)?t:Infinity;}
+  function dPS(px,py,a,b){const dx=b.x-a.x,dy=b.y-a.y,l2=dx*dx+dy*dy;if(l2===0)return Math.hypot(px-a.x,py-a.y);const t=Math.max(0,Math.min(1,((px-a.x)*dx+(py-a.y)*dy)/l2));return Math.hypot(px-(a.x+t*dx),py-(a.y+t*dy));}
 
-// ── Maze generation: recursive backtracker ────────────────────────────────────
-// Returns cells[r][c] = {n,e,s,w} where true = wall present
-function generateMaze(cols, rows) {
-  const cells = [];
-  for (let r = 0; r < rows; r++) {
-    cells[r] = [];
-    for (let c = 0; c < cols; c++) {
-      cells[r][c] = { n: true, e: true, s: true, w: true };
+  // ── MISSILE ───────────────────────────────────────────
+  class Missile{
+    constructor(x,y,angle,owner,col){this.x=x;this.y=y;this.angle=angle;this.owner=owner;this.col=col;this.spd=220;this.dead=false;this.age=0;this.trail=[];this.r=6;}
+    update(dt,tgt){this.age+=dt;this.trail.push({x:this.x,y:this.y});if(this.trail.length>20)this.trail.shift();if(tgt&&tgt.alive){let d=Math.atan2(tgt.y-this.y,tgt.x-this.x)-this.angle;while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;this.angle+=Math.sign(d)*Math.min(Math.abs(d),2.8*dt);}this.x+=Math.cos(this.angle)*this.spd*dt;this.y+=Math.sin(this.angle)*this.spd*dt;for(const w of walls){if(hwM(this,w)){if(w.y1===w.y2)this.angle=Math.atan2(-Math.sin(this.angle),Math.cos(this.angle));else this.angle=Math.atan2(Math.sin(this.angle),-Math.cos(this.angle));}}this.x=Math.max(this.r,Math.min(W-this.r,this.x));this.y=Math.max(this.r,Math.min(H-this.r,this.y));if(this.age>8)this.dead=true;}
+    draw(ctx){for(let i=0;i<this.trail.length;i++){const t=this.trail[i];ctx.save();ctx.globalAlpha=(i/this.trail.length)*.5;ctx.fillStyle=this.col;ctx.beginPath();ctx.arc(t.x,t.y,this.r*(i/this.trail.length)*.8,0,Math.PI*2);ctx.fill();ctx.restore();}ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.angle);ctx.shadowColor=this.col;ctx.shadowBlur=14;ctx.fillStyle=this.col;ctx.beginPath();ctx.ellipse(0,0,this.r+2,this.r-1,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.beginPath();ctx.ellipse(this.r,0,4,3,0,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.7+Math.random()*.3;ctx.fillStyle='#ff8800';ctx.beginPath();ctx.ellipse(-this.r-2,0,5,3,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+    toJSON(){return{x:this.x,y:this.y,angle:this.angle,owner:this.owner,age:this.age};}
+  }
+  function hwM(m,w){const h=w.y1===w.y2,r=m.r+3;return h?m.x>=Math.min(w.x1,w.x2)&&m.x<=Math.max(w.x1,w.x2)&&Math.abs(m.y-w.y1)<r:m.y>=Math.min(w.y1,w.y2)&&m.y<=Math.max(w.y1,w.y2)&&Math.abs(m.x-w.x1)<r;}
+
+  // ── BULLET ────────────────────────────────────────────
+  class Bullet{
+    constructor(x,y,angle,owner,big){this.x=x;this.y=y;this.vx=Math.cos(angle)*BULLET_SPD;this.vy=Math.sin(angle)*BULLET_SPD;this.owner=owner;this.bounces=0;this.age=0;this.dead=false;this.r=big?9:BULLET_R;this.big=big;this.trail=[];}
+    update(dt){this.age+=dt;this.trail.push({x:this.x,y:this.y});if(this.trail.length>10)this.trail.shift();this.x+=this.vx*dt;this.y+=this.vy*dt;for(const w of walls){if(this.hw(w)){this.bounce(w);this.bounces++;if(this.bounces>MAX_BOUNCE)this.dead=true;}}}
+    hw(w){const h=w.y1===w.y2,r=this.r+3;return h?this.x>=Math.min(w.x1,w.x2)&&this.x<=Math.max(w.x1,w.x2)&&Math.abs(this.y-w.y1)<r:this.y>=Math.min(w.y1,w.y2)&&this.y<=Math.max(w.y1,w.y2)&&Math.abs(this.x-w.x1)<r;}
+    bounce(w){if(w.y1===w.y2){this.vy=-this.vy;this.y=w.y1+(this.y<w.y1?-1:1)*(this.r+4);}else{this.vx=-this.vx;this.x=w.x1+(this.x<w.x1?-1:1)*(this.r+4);}}
+    draw(ctx){const col=this.owner===0?C1:C2;for(let i=0;i<this.trail.length;i++){const t=this.trail[i];ctx.save();ctx.globalAlpha=(i/this.trail.length)*.4;ctx.fillStyle=col;ctx.beginPath();ctx.arc(t.x,t.y,this.r*(i/this.trail.length),0,Math.PI*2);ctx.fill();ctx.restore();}ctx.save();ctx.shadowColor=col;ctx.shadowBlur=this.big?18:12;ctx.fillStyle='rgba(255,255,255,.9)';ctx.beginPath();ctx.arc(this.x,this.y,this.r*.5,0,Math.PI*2);ctx.fill();ctx.globalAlpha=.65;ctx.fillStyle=col;ctx.beginPath();ctx.arc(this.x,this.y,this.r,0,Math.PI*2);ctx.fill();ctx.restore();}
+    toJSON(){return{x:this.x,y:this.y,vx:this.vx,vy:this.vy,owner:this.owner,bounces:this.bounces,age:this.age,r:this.r,big:this.big};}
+    static from(d){const b=new Bullet(d.x,d.y,0,d.owner,d.big);b.vx=d.vx;b.vy=d.vy;b.bounces=d.bounces;b.age=d.age;b.r=d.r;return b;}
+  }
+
+  // ── TANK ──────────────────────────────────────────────
+  class Tank{
+    constructor(id,x,y,angle,col){this.id=id;this.x=x;this.y=y;this.angle=angle;this.col=col;this.bullets=[];this.missiles=[];this.lasers=[];this.alive=true;this.cd=0;this.tread=0;this.powerup=null;this.puTimer=0;this.shield=false;this.speedMult=1;}
+    activatePowerup(typeId){this.powerup=typeId;if(typeId==='shield'){this.shield=true;this.puTimer=8;}else if(typeId==='speed'){this.speedMult=2.2;this.puTimer=6;}else{this.puTimer=15;}updatePuHUD();}
+    update(dt,inp,enemy){
+      if(!this.alive)return;
+      if(inp.left)this.angle-=TANK_ROT*dt;if(inp.right)this.angle+=TANK_ROT*dt;
+      if(inp.up||inp.down){const d=inp.up?1:-1;this.x+=Math.cos(this.angle)*TANK_SPD*this.speedMult*d*dt;this.y+=Math.sin(this.angle)*TANK_SPD*this.speedMult*d*dt;this.tread+=dt*9;}
+      for(let p=0;p<3;p++)for(const w of walls)this._rw(w);
+      this.x=Math.max(TANK_R,Math.min(W-TANK_R,this.x));this.y=Math.max(TANK_R,Math.min(H-TANK_R,this.y));
+      this.cd-=dt;
+      if(this.puTimer>0){this.puTimer-=dt;if(this.puTimer<=0){if(this.powerup==='speed')this.speedMult=1;if(this.powerup==='shield')this.shield=false;this.powerup=null;updatePuHUD();}}
+      if(inp.fire&&this.cd<=0)this._fire();
+      for(const b of this.bullets)b.update(dt);this.bullets=this.bullets.filter(b=>!b.dead);
+      for(const m of this.missiles)m.update(dt,enemy);this.missiles=this.missiles.filter(m=>!m.dead);
+      for(const l of this.lasers)l.update(dt);this.lasers=this.lasers.filter(l=>!l.dead);
+    }
+    _fire(){const bx=this.x+Math.cos(this.angle)*(TANK_R+8),by=this.y+Math.sin(this.angle)*(TANK_R+8);if(this.powerup==='missile'){this.missiles.push(new Missile(bx,by,this.angle,this.id,this.col));this.cd=0.5;}else if(this.powerup==='laser'){this.lasers.push(new Laser(bx,by,this.angle,this.id,this.col));this.cd=0.4;}else if(this.powerup==='triple'){for(const off of[-0.22,0,0.22])if(this.bullets.length<MAX_BULS+3)this.bullets.push(new Bullet(bx,by,this.angle+off,this.id,false));this.cd=FIRE_CD;}else if(this.powerup==='bigbullet'){if(this.bullets.length<MAX_BULS)this.bullets.push(new Bullet(bx,by,this.angle,this.id,true));this.cd=0.5;}else{if(this.bullets.length<MAX_BULS)this.bullets.push(new Bullet(bx,by,this.angle,this.id,false));this.cd=FIRE_CD;}}
+    _rw(w){const h=w.y1===w.y2,pad=TANK_R+WALL_T;if(h){if(this.x<Math.min(w.x1,w.x2)-TANK_R||this.x>Math.max(w.x1,w.x2)+TANK_R)return;const d=this.y-w.y1;if(Math.abs(d)<pad)this.y=w.y1+(d>=0?pad:-pad);}else{if(this.y<Math.min(w.y1,w.y2)-TANK_R||this.y>Math.max(w.y1,w.y2)+TANK_R)return;const d=this.x-w.x1;if(Math.abs(d)<pad)this.x=w.x1+(d>=0?pad:-pad);}}
+    draw(ctx){
+      if(!this.alive)return;
+      const c=this.col;
+      ctx.save();ctx.translate(this.x,this.y);ctx.rotate(this.angle);
+      ctx.save();ctx.globalAlpha=.09;ctx.fillStyle=c;ctx.beginPath();ctx.arc(0,0,26,0,Math.PI*2);ctx.fill();ctx.restore();
+      if(this.shield){ctx.save();ctx.globalAlpha=.25+Math.sin(Date.now()*.005)*.1;ctx.strokeStyle='#4488ff';ctx.lineWidth=3;ctx.shadowColor='#4488ff';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(0,0,24,0,Math.PI*2);ctx.stroke();ctx.restore();}
+      if(this.speedMult>1){ctx.save();ctx.globalAlpha=.3;ctx.strokeStyle='#ffff00';ctx.lineWidth=1.5;for(let i=0;i<3;i++){const o=(i-1)*8;ctx.beginPath();ctx.moveTo(-18,o);ctx.lineTo(-28,o);ctx.stroke();}ctx.restore();}
+      [-1,1].forEach(side=>{const ty=side*10;ctx.fillStyle='#111a28';ctx.beginPath();rrx(ctx,-14,ty-4,28,8,2);ctx.fill();ctx.strokeStyle=c+'55';ctx.lineWidth=1;for(let i=0;i<7;i++){const tx=-14+((i*4+this.tread*side*2)%28+28)%28;ctx.beginPath();ctx.moveTo(tx,ty-4);ctx.lineTo(tx,ty+4);ctx.stroke();}ctx.strokeStyle=c+'30';ctx.lineWidth=1;ctx.beginPath();rrx(ctx,-14,ty-4,28,8,2);ctx.stroke();});
+      const hg=ctx.createLinearGradient(-11,-7,11,7);hg.addColorStop(0,c+'cc');hg.addColorStop(.6,c+'77');hg.addColorStop(1,c+'33');ctx.fillStyle=hg;ctx.beginPath();rrx(ctx,-11,-7,22,14,3);ctx.fill();ctx.strokeStyle=c+'80';ctx.lineWidth=1.5;ctx.beginPath();rrx(ctx,-11,-7,22,14,3);ctx.stroke();
+      ctx.fillStyle=c+'aa';ctx.strokeStyle=c;ctx.lineWidth=1.5;ctx.beginPath();ctx.arc(0,0,7,0,Math.PI*2);ctx.fill();ctx.stroke();
+      const bc=this.powerup?(PU_TYPES.find(p=>p.id===this.powerup)?.col||c):c;ctx.fillStyle=bc+'cc';ctx.strokeStyle=bc+'99';ctx.lineWidth=1;ctx.beginPath();ctx.rect(4,-2.5,14,5);ctx.fill();ctx.stroke();ctx.fillStyle=bc;ctx.beginPath();ctx.rect(16,-3,3.5,6);ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.16)';ctx.beginPath();ctx.ellipse(-1,-3,4,1.8,-.3,0,Math.PI*2);ctx.fill();
+      ctx.restore();
+      for(const b of this.bullets)b.draw(ctx);for(const m of this.missiles)m.draw(ctx);for(const l of this.lasers)l.draw(ctx);
+    }
+    toJSON(){return{id:this.id,x:this.x,y:this.y,angle:this.angle,alive:this.alive,powerup:this.powerup,puTimer:this.puTimer,shield:this.shield,speedMult:this.speedMult,bullets:this.bullets.map(b=>b.toJSON()),missiles:this.missiles.map(m=>m.toJSON())};}
+    applyJSON(d){this.x=d.x;this.y=d.y;this.angle=d.angle;this.alive=d.alive;this.powerup=d.powerup;this.puTimer=d.puTimer;this.shield=d.shield;this.speedMult=d.speedMult;this.bullets=d.bullets.map(b=>Bullet.from(b));this.missiles=(d.missiles||[]).map(m=>{const ms=new Missile(m.x,m.y,m.angle,m.owner,m.owner===0?C1:C2);ms.age=m.age;return ms;});}
+  }
+  function rrx(ctx,x,y,w,h,r){ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.arcTo(x+w,y,x+w,y+r,r);ctx.lineTo(x+w,y+h-r);ctx.arcTo(x+w,y+h,x+w-r,y+h,r);ctx.lineTo(x+r,y+h);ctx.arcTo(x,y+h,x,y+h-r,r);ctx.lineTo(x,y+r);ctx.arcTo(x,y,x+r,y,r);ctx.closePath();}
+
+  // ── CANVAS ────────────────────────────────────────────
+  const canvas=document.getElementById('gc');
+  const ctx=canvas.getContext('2d');
+  function drawMaze(){ctx.fillStyle='#070f1c';ctx.fillRect(0,0,W,H);for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){if((r+c)%2===0){ctx.fillStyle='rgba(255,255,255,.012)';ctx.fillRect(c*CELL,r*CELL,CELL,CELL);}}ctx.lineCap='square';ctx.strokeStyle='rgba(0,0,0,.65)';ctx.lineWidth=WALL_T+5;for(const w of walls){ctx.beginPath();ctx.moveTo(w.x1,w.y1);ctx.lineTo(w.x2,w.y2);ctx.stroke();}ctx.strokeStyle='#1a3352';ctx.lineWidth=WALL_T;for(const w of walls){ctx.beginPath();ctx.moveTo(w.x1,w.y1);ctx.lineTo(w.x2,w.y2);ctx.stroke();}ctx.strokeStyle='#2a5585';ctx.lineWidth=1;for(const w of walls){const h=w.y1===w.y2;ctx.beginPath();ctx.moveTo(w.x1+(h?0:-1),w.y1+(h?-1:0));ctx.lineTo(w.x2+(h?0:-1),w.y2+(h?-1:0));ctx.stroke();}ctx.fillStyle='#2a5585';for(let r=0;r<=ROWS;r++)for(let c=0;c<=COLS;c++){ctx.beginPath();ctx.arc(c*CELL,r*CELL,2.5,0,Math.PI*2);ctx.fill();}}
+
+  // ── GAME STATE ────────────────────────────────────────
+  let tanks=[],powerupItems=[];
+  let scores=[0,0],gState='lobby',roundTimer=0,roundWinner=null;
+  let isLocal=false,isHost=false,currentSeed=1;
+  const held={};let remoteInp={};let puSpawnTimer=0;
+  window.addEventListener('keydown',e=>{held[e.code]=true;if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code))e.preventDefault();});
+  window.addEventListener('keyup',e=>{held[e.code]=false;});
+  function getInp(K){return{up:!!held[K.up],down:!!held[K.down],left:!!held[K.left],right:!!held[K.right],fire:!!held[K.fire]};}
+
+  function updatePuHUD(){[0,1].forEach(i=>{const el=document.getElementById('pu'+(i+1));if(!el)return;const t=tanks[i];if(!t||!t.powerup){el.innerHTML='';return;}const pu=PU_TYPES.find(p=>p.id===t.powerup);if(!pu)return;el.innerHTML=`<div class="pu-slot active" style="border-color:${pu.col};box-shadow:0 0 8px ${pu.col}44">${pu.label}</div>`;});}
+
+  function spawnPos(rng,other){for(let i=0;i<300;i++){const c=Math.floor(rng()*COLS),r=Math.floor(rng()*ROWS);const x=c*CELL+CELL/2,y=r*CELL+CELL/2;if(!other||Math.hypot(x-other.x,y-other.y)>CELL*5)return{x,y};}return{x:CELL*1.5,y:CELL*1.5};}
+  function initRound(seed){currentSeed=seed||Math.floor(Math.random()*0xFFFFFF);const rng=sRng(currentSeed);walls=buildWalls(makeMaze(currentSeed));parts=[];powerupItems=[];puSpawnTimer=5;const s1=spawnPos(rng,null),s2=spawnPos(rng,s1);tanks=[new Tank(0,s1.x,s1.y,0,C1),new Tank(1,s2.x,s2.y,Math.PI,C2)];updatePuHUD();}
+  function spawnPowerup(){const type=PU_TYPES[Math.floor(Math.random()*PU_TYPES.length)];for(let a=0;a<50;a++){const c=Math.floor(Math.random()*COLS),r=Math.floor(Math.random()*ROWS);const x=c*CELL+CELL/2,y=r*CELL+CELL/2;if(tanks.every(t=>!t.alive||Math.hypot(t.x-x,t.y-y)>CELL*2)&&powerupItems.length<4){powerupItems.push(new PowerUpItem(x,y,type));return;}}}
+  function checkPUPickup(){for(const pu of powerupItems){if(!pu.alive)continue;for(const t of tanks){if(!t.alive)continue;if(Math.hypot(t.x-pu.x,t.y-pu.y)<TANK_R+pu.r){pu.alive=false;t.activatePowerup(pu.type.id);boom(pu.x,pu.y,pu.type.col);}}}powerupItems=powerupItems.filter(p=>p.alive);}
+  function checkHits(){
+    for(const sh of tanks){
+      for(const b of sh.bullets){for(const tg of tanks){if(!tg.alive||b.owner===tg.id&&b.age<.15)continue;if(Math.hypot(b.x-tg.x,b.y-tg.y)<TANK_R+b.r){b.dead=true;if(tg.shield){tg.shield=false;tg.powerup=null;boom(tg.x,tg.y,'#4488ff');updatePuHUD();continue;}killTank(tg,b.owner);return;}}}
+      for(const m of sh.missiles){for(const tg of tanks){if(!tg.alive||m.owner===tg.id&&m.age<.3)continue;if(Math.hypot(m.x-tg.x,m.y-tg.y)<TANK_R+m.r+2){m.dead=true;if(tg.shield){tg.shield=false;tg.powerup=null;boom(tg.x,tg.y,'#4488ff');updatePuHUD();continue;}killTank(tg,m.owner);return;}}}
+      for(const l of sh.lasers){if(l.age>.05)continue;for(const tg of tanks){if(!tg.alive||l.owner===tg.id)continue;if(l.hitsPoint(tg.x,tg.y,TANK_R)){if(tg.shield){tg.shield=false;tg.powerup=null;boom(tg.x,tg.y,'#4488ff');updatePuHUD();continue;}killTank(tg,l.owner);return;}}}
     }
   }
-  const visited = Array.from({length: rows}, () => new Array(cols).fill(false));
-  const stack = [{r: 0, c: 0}];
-  visited[0][0] = true;
-  const dirs = [
-    {dr:-1, dc: 0, from:'n', to:'s'},
-    {dr: 0, dc: 1, from:'e', to:'w'},
-    {dr: 1, dc: 0, from:'s', to:'n'},
-    {dr: 0, dc:-1, from:'w', to:'e'},
-  ];
-  while (stack.length > 0) {
-    const cur = stack[stack.length - 1];
-    const nbrs = [];
-    for (const d of dirs) {
-      const nr = cur.r + d.dr, nc = cur.c + d.dc;
-      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && !visited[nr][nc]) {
-        nbrs.push({r: nr, c: nc, from: d.from, to: d.to});
-      }
+  function killTank(tg,sid){tg.alive=false;boom(tg.x,tg.y,tg.col);const wid=sid===tg.id?1-tg.id:sid;scores[wid]++;roundWinner=wid;showRoundOver();}
+  function showRoundOver(){gState='roundover';roundTimer=RESPAWN;const rw=document.getElementById('rwText');rw.textContent=`PLAYER ${roundWinner+1} WINS`;rw.style.color=roundWinner===0?C1:C2;rw.style.textShadow=`0 0 30px ${roundWinner===0?C1:C2}`;document.getElementById('ro').classList.add('on');updateHUD();}
+  function hideRoundOver(){gState='playing';document.getElementById('ro').classList.remove('on');}
+  function updateHUD(){document.getElementById('sc1').textContent=scores[0];document.getElementById('sc2').textContent=scores[1];}
+
+  // ── MAIN LOOP ─────────────────────────────────────────
+  let last=null,sendT=0;
+  function loop(ts){
+    if(!last)last=ts;const dt=Math.min((ts-last)/1000,.05);last=ts;
+    ctx.clearRect(0,0,W,H);
+    if(gState==='playing'||gState==='roundover'){
+      tickParts(dt);
+      if(gState==='playing'){
+        if(isLocal){tanks[0].update(dt,getInp(P1K),tanks[1]);tanks[1].update(dt,getInp(P2K),tanks[0]);puSpawnTimer-=dt;if(puSpawnTimer<=0){spawnPowerup();puSpawnTimer=8+Math.random()*6;}for(const pu of powerupItems)pu.update(dt);checkPUPickup();checkHits();}
+        else if(isHost){tanks[0].update(dt,getInp(P1K),tanks[1]);tanks[1].update(dt,{up:!!remoteInp.up,down:!!remoteInp.down,left:!!remoteInp.left,right:!!remoteInp.right,fire:!!remoteInp.fire},tanks[0]);puSpawnTimer-=dt;if(puSpawnTimer<=0){spawnPowerup();puSpawnTimer=8+Math.random()*6;}for(const pu of powerupItems)pu.update(dt);checkPUPickup();checkHits();sendT+=dt;if(sendT>.05){netSendState();sendT=0;}}
+        else{sendT+=dt;if(sendT>.05){netSendInp();sendT=0;}}
+      }else if(gState==='roundover'&&(isLocal||isHost)){roundTimer-=dt;if(roundTimer<=0){hideRoundOver();const ns=Math.floor(Math.random()*0xFFFFFF);initRound(ns);if(isHost&&conn&&conn.open)conn.send({t:'newround',seed:ns,scores});}}
+      drawMaze();for(const pu of powerupItems)pu.draw(ctx);for(const tk of tanks)tk.draw(ctx);drawParts(ctx);
     }
-    if (nbrs.length === 0) { stack.pop(); continue; }
-    const next = nbrs[Math.floor(Math.random() * nbrs.length)];
-    cells[cur.r][cur.c][next.from] = false;   // remove wall from current side
-    cells[next.r][next.c][next.to] = false;   // remove wall from neighbour side
-    visited[next.r][next.c] = true;
-    stack.push({r: next.r, c: next.c});
+    if(gState==='playing'||gState==='roundover')requestAnimationFrame(loop);
   }
-  return cells;
-}
+  function startGame(){gState='playing';last=null;document.getElementById('lobby').style.display='none';document.getElementById('waiting').classList.remove('on');document.getElementById('hud').classList.add('on');document.getElementById('ro').classList.remove('on');updateHUD();requestAnimationFrame(loop);}
 
-// ── Wall rects from maze ──────────────────────────────────────────────────────
-// Each wall is {x,y,w,h} in pixel space
-// We only emit south and east walls per cell (shared walls are not doubled)
-let wallRects = [];
-let mazeData  = null;
+  // ══════════════════════════════════════════════════════
+  //  NETWORKING — FastAPI WebSocket Server
+  //
+  //  Uses the /ws endpoint from the provided FastAPI server.
+  //  Both players connect to the same server URL.
+  //  The server broadcasts every message to all clients.
+  //
+  //  Protocol:
+  //   {t:'hello', role:'p1'|'p2'}  — first message, claims a role
+  //   {t:'inp', inp:{...}}          — P2 sends inputs to host
+  //   {t:'state', ...}              — host sends game state to client
+  //   {t:'start', seed:N}           — host starts the round
+  //   {t:'newround', seed:N}        — host starts a new round
+  //   {t:'ping'} / {t:'pong'}       — latency check
+  // ══════════════════════════════════════════════════════
+  let ws=null, myRole=null; // 'p1' = host, 'p2' = joiner
+  let wsReady=false;
+  let pingInterval=null;
 
-function buildWalls() {
-  wallRects = [];
-  mazeData = generateMaze(MCOLS, MROWS);
-
-  // Border
-  wallRects.push({x:0,       y:0,       w:CW,   h:WTHK});
-  wallRects.push({x:0,       y:CH-WTHK, w:CW,   h:WTHK});
-  wallRects.push({x:0,       y:0,       w:WTHK, h:CH});
-  wallRects.push({x:CW-WTHK, y:0,       w:WTHK, h:CH});
-
-  for (let r = 0; r < MROWS; r++) {
-    for (let c = 0; c < MCOLS; c++) {
-      const cell = mazeData[r][c];
-      const x0 = WTHK + c * CELL;
-      const y0 = WTHK + r * CELL;
-
-      // South wall (only if not last row — last row is the border)
-      if (cell.s && r < MROWS - 1) {
-        wallRects.push({x: x0, y: y0 + CELL, w: CELL + WTHK, h: WTHK});
-      }
-      // East wall (only if not last col)
-      if (cell.e && c < MCOLS - 1) {
-        wallRects.push({x: x0 + CELL, y: y0, w: WTHK, h: CELL + WTHK});
-      }
-    }
+  function diagSet(id,icon,statusText,cls){
+    const row=document.getElementById('d-'+id);
+    const st=document.getElementById('ds-'+id);
+    if(!row||!st)return;
+    row.querySelector('.diag-icon').textContent=icon;
+    st.textContent=statusText;
+    st.className='diag-status '+(cls||'');
   }
-}
-
-// ── AABB helpers ──────────────────────────────────────────────────────────────
-function aabbHit(ax,ay,aw,ah, bx,by,bw,bh) {
-  return ax < bx+bw && ax+aw > bx && ay < by+bh && ay+ah > by;
-}
-
-// ── Tank movement + wall push-out ─────────────────────────────────────────────
-// Uses axis-aligned bounding box (radius = 12px square) for reliable collisions
-const TANK_R = 12; // half-size of collision square
-
-function pushOutTank(obj) {
-  // Run multiple passes so we don't miss corner cases
-  for (let pass = 0; pass < 3; pass++) {
-    for (const w of wallRects) {
-      const ox = obj.x - TANK_R, oy = obj.y - TANK_R;
-      const ow = TANK_R*2,       oh = TANK_R*2;
-      if (!aabbHit(ox,oy,ow,oh, w.x,w.y,w.w,w.h)) continue;
-
-      const overL = (ox+ow) - w.x;
-      const overR = (w.x+w.w) - ox;
-      const overT = (oy+oh) - w.y;
-      const overB = (w.y+w.h) - oy;
-      const minX = Math.min(overL, overR);
-      const minY = Math.min(overT, overB);
-      if (minX < minY) {
-        obj.x += (overL < overR) ? -overL : overR;
-      } else {
-        obj.y += (overT < overB) ? -overT : overB;
-      }
-    }
+  function diagMsg(msg,col){
+    const el=document.getElementById('waitMsg');
+    if(el){el.textContent=msg;el.style.color=col||'#f5c518';}
   }
-  // Hard clamp to canvas
-  obj.x = Math.max(TANK_R + WTHK, Math.min(CW - TANK_R - WTHK, obj.x));
-  obj.y = Math.max(TANK_R + WTHK, Math.min(CH - TANK_R - WTHK, obj.y));
-}
-
-// ── Tank drawing ──────────────────────────────────────────────────────────────
-function drawTank(c, col, x, y, angle) {
-  c.save();
-  c.translate(x, y);
-  c.rotate(angle);
-
-  // Treads
-  c.fillStyle = '#2a2a2a';
-  c.fillRect(-14, -13, 28, 7);
-  c.fillRect(-14,  6,  28, 7);
-
-  // Tread notches
-  c.fillStyle = '#111';
-  for (let i = -13; i < 15; i += 5) {
-    c.fillRect(i, -13, 3, 7);
-    c.fillRect(i,   6, 3, 7);
+  function diagReset(){
+    ['ws','role','lobby','game'].forEach(id=>diagSet(id,'⏳','waiting…','ds-spin'));
+    diagMsg('');
+    document.getElementById('waitTitle').textContent='Connecting…';
   }
 
-  // Body
-  c.fillStyle = col;
-  c.fillRect(-12, -8, 24, 16);
-
-  // Body highlight
-  c.fillStyle = 'rgba(255,255,255,0.2)';
-  c.fillRect(-11, -7, 22, 5);
-
-  // Body border
-  c.strokeStyle = 'rgba(0,0,0,0.45)';
-  c.lineWidth = 1.5;
-  c.strokeRect(-12, -8, 24, 16);
-
-  // Turret base
-  c.fillStyle = col;
-  c.strokeStyle = 'rgba(0,0,0,0.5)';
-  c.lineWidth = 1.5;
-  c.beginPath();
-  c.arc(0, 0, 8, 0, Math.PI * 2);
-  c.fill();
-  c.stroke();
-
-  // Barrel — drawn as rounded rect manually (no roundRect for compat)
-  const bx = 5, by = -3, bw = 17, bh = 6, br = 2;
-  c.fillStyle = '#aaa';
-  c.strokeStyle = '#555';
-  c.lineWidth = 1;
-  c.beginPath();
-  c.moveTo(bx+br, by);
-  c.lineTo(bx+bw-br, by);
-  c.arcTo(bx+bw, by, bx+bw, by+br, br);
-  c.lineTo(bx+bw, by+bh-br);
-  c.arcTo(bx+bw, by+bh, bx+bw-br, by+bh, br);
-  c.lineTo(bx+br, by+bh);
-  c.arcTo(bx, by+bh, bx, by+bh-br, br);
-  c.lineTo(bx, by+br);
-  c.arcTo(bx, by, bx+br, by, br);
-  c.closePath();
-  c.fill();
-  c.stroke();
-
-  c.restore();
-}
-
-// ── Maze drawing ──────────────────────────────────────────────────────────────
-function drawMaze() {
-  // Floor
-  ctx.fillStyle = '#c8c8b0';
-  ctx.fillRect(0, 0, CW, CH);
-
-  // Subtle grid lines on floor
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  ctx.lineWidth = 1;
-  for (let c = 0; c <= MCOLS; c++) {
-    ctx.beginPath();
-    ctx.moveTo(WTHK + c*CELL, 0);
-    ctx.lineTo(WTHK + c*CELL, CH);
-    ctx.stroke();
-  }
-  for (let r = 0; r <= MROWS; r++) {
-    ctx.beginPath();
-    ctx.moveTo(0, WTHK + r*CELL);
-    ctx.lineTo(CW, WTHK + r*CELL);
-    ctx.stroke();
+  function getWsUrl(){
+    // Auto-detect: if served from the FastAPI server, use same host
+    // If running from file://, use localhost:8081
+    const proto = location.protocol==='https:' ? 'wss' : 'ws';
+    const host  = location.hostname==='127.0.0.1'||location.hostname==='localhost'||location.hostname===''
+            ? 'localhost:8081'
+            : location.host;
+    return proto+'://'+host+'/ws';
   }
 
-  // Walls
-  for (const w of wallRects) {
-    // Main fill
-    ctx.fillStyle = '#5a5a5a';
-    ctx.fillRect(w.x, w.y, w.w, w.h);
-    // Top/left lighter edge
-    ctx.fillStyle = '#777';
-    ctx.fillRect(w.x, w.y, w.w, 2);
-    ctx.fillRect(w.x, w.y, 2, w.h);
-    // Bottom/right darker edge
-    ctx.fillStyle = '#3a3a3a';
-    ctx.fillRect(w.x, w.y+w.h-2, w.w, 2);
-    ctx.fillRect(w.x+w.w-2, w.y, 2, w.h);
-  }
-
-  // Corner posts at every grid intersection
-  ctx.fillStyle = '#444';
-  for (let r = 0; r <= MROWS; r++) {
-    for (let c = 0; c <= MCOLS; c++) {
-      ctx.fillRect(c * CELL, r * CELL, WTHK, WTHK);
-    }
-  }
-}
-
-// ── Particles ─────────────────────────────────────────────────────────────────
-const particles = [];
-
-function spawnExplosion(x, y, col) {
-  for (let i = 0; i < 30; i++) {
-    const a = Math.random() * Math.PI * 2;
-    const s = 1.5 + Math.random() * 4.5;
-    particles.push({
-      x, y,
-      vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-      r: 2 + Math.random()*5,
-      life: 1,
-      decay: 0.022 + Math.random()*0.04,
-      col,
+  function connectWs(){
+    return new Promise((res,rej)=>{
+      const url=getWsUrl();
+      diagSet('ws','🔄','connecting to '+url,'ds-spin');
+      try{ ws=new WebSocket(url); }
+      catch(e){ diagSet('ws','❌','could not open','ds-fail'); rej(e); return; }
+      const timer=setTimeout(()=>{
+        diagSet('ws','❌','timed out','ds-fail');
+        rej(new Error('WebSocket timeout'));
+      },10000);
+      ws.onopen=()=>{
+        clearTimeout(timer);
+        wsReady=true;
+        diagSet('ws','✅','connected','ds-ok');
+        res(ws);
+      };
+      ws.onerror=e=>{clearTimeout(timer);diagSet('ws','❌','error','ds-fail');rej(new Error('WS error'));};
+      ws.onclose=e=>{
+        wsReady=false;
+        document.getElementById('pingEl').textContent='⚠ disconnected';
+      };
     });
   }
-  // Shockwave ring particles
-  for (let i = 0; i < 12; i++) {
-    const a = (Math.PI*2*i/12);
-    particles.push({
-      x, y,
-      vx: Math.cos(a)*6, vy: Math.sin(a)*6,
-      r: 4, life: 0.7, decay: 0.07, col: '#ffcc44',
-    });
-  }
-}
 
-function updateParticles() {
-  for (let i = particles.length-1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy;
-    p.vx *= 0.88; p.vy *= 0.88;
-    p.life -= p.decay;
-    if (p.life <= 0) particles.splice(i, 1);
-  }
-}
-
-function drawParticles() {
-  for (const p of particles) {
-    ctx.save();
-    ctx.globalAlpha = p.life * p.life;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r * p.life, 0, Math.PI*2);
-    ctx.fillStyle = p.col;
-    ctx.fill();
-    ctx.restore();
-  }
-}
-
-// ── Bullet ────────────────────────────────────────────────────────────────────
-class Bullet {
-  constructor(x, y, angle, ownerIdx) {
-    // Start bullet well ahead of barrel tip
-    this.x = x + Math.cos(angle) * 22;
-    this.y = y + Math.sin(angle) * 22;
-    this.vx = Math.cos(angle) * BULLET_SPEED;
-    this.vy = Math.sin(angle) * BULLET_SPEED;
-    this.ownerIdx = ownerIdx;  // 0 or 1
-    this.alive = true;
-    this.bounces = 0;
-    this.r = 5;
-    this.trail = [];
-    // Track age so we don't self-collide in first few frames
-    this.age = 0;
+  function sendMsg(obj){
+    if(ws&&ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify(obj));
   }
 
-  update() {
-    this.age++;
-    this.trail.unshift({x: this.x, y: this.y});
-    if (this.trail.length > 7) this.trail.pop();
-
-    const nx = this.x + this.vx;
-    const ny = this.y + this.vy;
-    let hitX = false, hitY = false;
-
-    for (const w of wallRects) {
-      if (aabbHit(nx-this.r, this.y-this.r, this.r*2, this.r*2, w.x,w.y,w.w,w.h)) hitX = true;
-      if (aabbHit(this.x-this.r, ny-this.r, this.r*2, this.r*2, w.x,w.y,w.w,w.h)) hitY = true;
-    }
-
-    if (hitX) this.vx = -this.vx;
-    if (hitY) this.vy = -this.vy;
-    if (hitX || hitY) this.bounces++;
-    if (this.bounces > MAX_BOUNCES) { this.alive = false; return; }
-
-    this.x += this.vx;
-    this.y += this.vy;
-
-    // Canvas boundary bounce
-    if (this.x - this.r < 0)      { this.x = this.r;       this.vx =  Math.abs(this.vx); this.bounces++; }
-    if (this.x + this.r > CW)     { this.x = CW - this.r;  this.vx = -Math.abs(this.vx); this.bounces++; }
-    if (this.y - this.r < 0)      { this.y = this.r;       this.vy =  Math.abs(this.vy); this.bounces++; }
-    if (this.y + this.r > CH)     { this.y = CH - this.r;  this.vy = -Math.abs(this.vy); this.bounces++; }
+  function netSendState(){
+    if(myRole!=='p1')return;
+    sendMsg({t:'state',tanks:tanks.map(tk=>tk.toJSON()),pus:powerupItems.map(p=>p.toJSON()),scores,roundover:gState==='roundover',playing:gState==='playing',roundWinner});
+  }
+  function netSendInp(){
+    if(myRole!=='p2')return;
+    sendMsg({t:'inp',inp:getInp(P2K)});
   }
 
-  draw() {
-    // Trail
-    for (let i = this.trail.length-1; i >= 0; i--) {
-      const alpha = (1 - i/this.trail.length) * 0.3;
-      ctx.beginPath();
-      ctx.arc(this.trail[i].x, this.trail[i].y, this.r * (1 - i/this.trail.length) * 0.8, 0, Math.PI*2);
-      ctx.fillStyle = `rgba(255,180,20,${alpha})`;
-      ctx.fill();
-    }
-    // Shell
-    const g = ctx.createRadialGradient(this.x-1.5, this.y-1.5, 0.5, this.x, this.y, this.r);
-    g.addColorStop(0, '#fff7a0');
-    g.addColorStop(0.4, '#ffaa00');
-    g.addColorStop(1, '#883300');
-    ctx.beginPath();
-    ctx.arc(this.x, this.y, this.r, 0, Math.PI*2);
-    ctx.fillStyle = g;
-    ctx.fill();
-    ctx.strokeStyle = '#441100';
-    ctx.lineWidth = 1;
-    ctx.stroke();
-  }
-}
+  function onWsMessage(evt){
+    let d;
+    try{d=JSON.parse(evt.data);}catch(e){return;}
+    if(!d||!d.t)return;
 
-// ── Tank ──────────────────────────────────────────────────────────────────────
-class Tank {
-  constructor(x, y, angle, color, idx, controls) {
-    this.x = x; this.y = y;
-    this.angle = angle;
-    this.color = color;
-    this.idx = idx;
-    this.controls = controls;
-    this.alive = true;
-    this.bullets = [];
-    this.cooldown = 0;
-  }
-
-  update(keys) {
-    if (!this.alive) return;
-    if (keys[this.controls.left])  this.angle -= TANK_TURN;
-    if (keys[this.controls.right]) this.angle += TANK_TURN;
-
-    if (keys[this.controls.up]) {
-      this.x += Math.cos(this.angle) * TANK_SPEED;
-      this.y += Math.sin(this.angle) * TANK_SPEED;
-    }
-    if (keys[this.controls.down]) {
-      this.x -= Math.cos(this.angle) * TANK_SPEED * 0.65;
-      this.y -= Math.sin(this.angle) * TANK_SPEED * 0.65;
-    }
-    pushOutTank(this);
-
-    if (this.cooldown > 0) this.cooldown--;
-    if (keys[this.controls.shoot] && this.cooldown === 0 && this.bullets.length < MAX_BULLETS) {
-      this.bullets.push(new Bullet(this.x, this.y, this.angle, this.idx));
-      this.cooldown = SHOOT_DELAY;
-    }
-
-    for (const b of this.bullets) b.update();
-    this.bullets = this.bullets.filter(b => b.alive);
-  }
-
-  draw() {
-    for (const b of this.bullets) b.draw();
-    if (this.alive) drawTank(ctx, this.color, this.x, this.y, this.angle);
-  }
-}
-
-// ── Spawn helper ──────────────────────────────────────────────────────────────
-// Shuffle an array of valid center positions, pick ones far enough apart
-function getSpawnPositions() {
-  const candidates = [];
-  for (let r = 0; r < MROWS; r++) {
-    for (let c = 0; c < MCOLS; c++) {
-      const cx = WTHK + c * CELL + CELL/2;
-      const cy = WTHK + r * CELL + CELL/2;
-      // Quick check: is center well inside free space?
-      let blocked = false;
-      for (const w of wallRects) {
-        if (aabbHit(cx-TANK_R, cy-TANK_R, TANK_R*2, TANK_R*2, w.x,w.y,w.w,w.h)) {
-          blocked = true; break;
-        }
+    // P1 (host) receives:
+    if(myRole==='p1'){
+      if(d.t==='hello'&&d.role==='p2'){
+        // P2 just joined — start the game
+        diagSet('game','✅','P2 connected!','ds-ok');
+        diagMsg('Opponent connected! Starting…','#4caf50');
+        isHost=true;
+        const seed=Math.floor(Math.random()*0xFFFFFF);
+        initRound(seed);
+        sendMsg({t:'start',seed,scores:[0,0]});
+        startGame();
+        startPingInterval();
       }
-      if (!blocked) candidates.push({x: cx, y: cy});
+      if(d.t==='inp') remoteInp=d.inp||{};
+      if(d.t==='pong') document.getElementById('pingEl').textContent=(Date.now()-d.ts)+'ms';
+    }
+
+    // P2 (joiner) receives:
+    if(myRole==='p2'){
+      if(d.t==='start'){
+        scores=d.scores||[0,0];
+        initRound(d.seed);
+        startGame();
+        startPingInterval();
+      }
+      if(d.t==='state'){
+        if(d.tanks&&tanks.length===2) d.tanks.forEach((dd,i)=>{if(tanks[i])tanks[i].applyJSON(dd);});
+        if(d.pus) powerupItems=(d.pus||[]).map(p=>{const tp=PU_TYPES.find(t=>t.id===p.typeId)||PU_TYPES[0];const pu=new PowerUpItem(p.x,p.y,tp,p.pulse);pu.alive=p.alive;return pu;}).filter(p=>p.alive);
+        if(d.scores){scores=d.scores;updateHUD();}
+        updatePuHUD();
+        if(d.roundover&&gState!=='roundover'){roundWinner=d.roundWinner;showRoundOver();}
+        if(d.playing&&gState==='roundover') hideRoundOver();
+      }
+      if(d.t==='newround'){hideRoundOver();initRound(d.seed);scores=d.scores||scores;updateHUD();}
+      if(d.t==='ping') sendMsg({t:'pong',ts:d.ts});
     }
   }
-  // Fisher-Yates shuffle
-  for (let i = candidates.length-1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i+1));
-    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+
+  function startPingInterval(){
+    if(pingInterval) clearInterval(pingInterval);
+    pingInterval=setInterval(()=>{if(myRole==='p1') sendMsg({t:'ping',ts:Date.now()});},2500);
   }
-  // Pick two that are at least 4 cells apart
-  const minDist = CELL * 4;
-  let a = candidates[0];
-  let b = null;
-  for (const c of candidates) {
-    const dx = c.x-a.x, dy = c.y-a.y;
-    if (Math.sqrt(dx*dx+dy*dy) >= minDist) { b = c; break; }
+
+  function stopNet(){
+    if(pingInterval){clearInterval(pingInterval);pingInterval=null;}
+    if(ws){try{ws.close();}catch(e){} ws=null;}
+    wsReady=false; myRole=null;
   }
-  if (!b) b = candidates[candidates.length-1]; // fallback
-  return [a, b];
-}
 
-// ── Game state ────────────────────────────────────────────────────────────────
-let tank1, tank2;
-let score1 = 0, score2 = 0;
-let keys   = {};
-let state  = 'menu';    // 'menu' | 'playing' | 'roundover'
-let roundOverTimer = 0;
+  async function startMatchmaking(){
+    diagReset();
 
-function setOverlay(title, titleColor, sub, show) {
-  const ov = document.getElementById('overlay');
-  ov.style.display = show ? 'flex' : 'none';
-  document.getElementById('ov-title').textContent = title;
-  document.getElementById('ov-title').style.color = titleColor;
-  document.getElementById('ov-sub').textContent   = sub;
-}
-
-function startRound() {
-  buildWalls();
-  const [s1, s2] = getSpawnPositions();
-  tank1 = new Tank(s1.x, s1.y, Math.random()*Math.PI*2, P1_COL, 0,
-    {up:'e', down:'d', left:'s', right:'f', shoot:'q'});
-  tank2 = new Tank(s2.x, s2.y, Math.random()*Math.PI*2, P2_COL, 1,
-    {up:'ArrowUp', down:'ArrowDown', left:'ArrowLeft', right:'ArrowRight', shoot:'l'});
-  particles.length = 0;
-  state = 'playing';
-  setOverlay('', '#fff', '', false);
-}
-
-function resolveHits() {
-  let t1hit = false, t2hit = false;
-
-  const checkBullets = (shooter, target) => {
-    for (const b of shooter.bullets) {
-      if (!b.alive) continue;
-      // Don't let bullets hit their own tank in the first 8 frames
-      const canSelfHit = (b.ownerIdx === shooter.idx) ? b.age > 8 : true;
-
-      if (target.alive) {
-        const dx = b.x - target.x, dy = b.y - target.y;
-        if (dx*dx + dy*dy < (TANK_R + b.r)*(TANK_R + b.r)) {
-          b.alive = false;
-          if (shooter.idx === 0) t2hit = true;
-          else                   t1hit = true;
-        }
-      }
-      // Self-hit (bounced shot comes back)
-      if (canSelfHit && b.bounces > 0 && shooter.alive) {
-        const dx = b.x - shooter.x, dy = b.y - shooter.y;
-        if (dx*dx + dy*dy < (TANK_R + b.r)*(TANK_R + b.r)) {
-          b.alive = false;
-          if (shooter.idx === 0) t1hit = true;
-          else                   t2hit = true;
-        }
-      }
+    // Step 1: Connect to WebSocket server
+    diagMsg('Step 1/3 — Connecting to game server…');
+    try{ await connectWs(); }
+    catch(e){
+      diagMsg('Cannot reach game server at '+getWsUrl()+'. Make sure the server is running.','#ff3d71');
+      return;
     }
-  };
 
-  checkBullets(tank1, tank2);
-  checkBullets(tank2, tank1);
+    ws.onmessage=onWsMessage;
 
-  if (t1hit || t2hit) {
-    if (t1hit) { tank1.alive = false; spawnExplosion(tank1.x, tank1.y, P1_COL); }
-    if (t2hit) { tank2.alive = false; spawnExplosion(tank2.x, tank2.y, P2_COL); }
-    spawnExplosion(t1hit ? tank1.x : tank2.x, t1hit ? tank1.y : tank2.y, '#ff9900');
+    // Step 2: Claim a role — first to send 'p1' hello gets to be host
+    diagSet('role','🔄','claiming role…','ds-spin');
+    diagMsg('Step 2/3 — Joining lobby…');
 
-    if (t1hit && t2hit) {
-      // Draw — no points
-    } else if (t2hit) {
-      score1++;
-      document.getElementById('sc1').textContent = score1;
+    // Send hello as p1 first — server broadcasts it to all
+    // If another p1 already exists (we'll see their state messages), we become p2
+    // We wait 1.5s to hear if a p1 is already broadcasting
+    let heardP1=false;
+    const tempListener=(evt)=>{
+      let d; try{d=JSON.parse(evt.data);}catch(e){return;}
+      if(d&&(d.t==='state'||d.t==='start')) heardP1=true;
+    };
+    ws.addEventListener('message',tempListener);
+    await new Promise(r=>setTimeout(r,1500));
+    ws.removeEventListener('message',tempListener);
+
+    if(heardP1){
+      // A host is already running — join as P2
+      myRole='p2';
+      isHost=false; isLocal=false;
+      diagSet('role','✅','joined as Player 2','ds-ok');
+      diagSet('lobby','✅','found host','ds-ok');
+      diagSet('game','🔄','waiting for host to start…','ds-spin');
+      diagMsg('Step 3/3 — Found a host! Waiting for game to start…');
+      setOnlineLabels(false);
+      sendMsg({t:'hello',role:'p2'});
     } else {
-      score2++;
-      document.getElementById('sc2').textContent = score2;
+      // No host heard — become P1 (host)
+      myRole='p1';
+      isHost=true; isLocal=false;
+      diagSet('role','✅','you are Player 1 (host)','ds-ok');
+      diagSet('lobby','🔄','waiting for Player 2…','ds-spin');
+      diagSet('game','🔄','waiting for opponent…','ds-spin');
+      diagMsg('Step 3/3 — Waiting for opponent to open the same page…');
+      document.getElementById('waitTitle').textContent='Waiting for opponent…';
+      setOnlineLabels(true);
+      // Broadcast our presence every 2s so late-joining P2 can hear us
+      sendMsg({t:'hello',role:'p1'});
+      const presenceInterval=setInterval(()=>{
+        if(gState!=='waiting'){clearInterval(presenceInterval);return;}
+        sendMsg({t:'hello',role:'p1'});
+      },2000);
     }
 
-    const msg = (t1hit && t2hit) ? 'DRAW!' : t2hit ? 'PLAYER 1 WINS!' : 'PLAYER 2 WINS!';
-    const col = (t1hit && t2hit) ? '#fff' : t2hit ? P1_COL : P2_COL;
-    setOverlay(msg, col, 'Next round starting…', true);
-    state = 'roundover';
-    roundOverTimer = 160;
+    // Start sending state if host (so P2 can detect us)
+    if(myRole==='p1'){
+      // Broadcast a lightweight ping so P2 detects us
+      const pingBroadcast=setInterval(()=>{
+        if(gState!=='waiting'){clearInterval(pingBroadcast);return;}
+        sendMsg({t:'state',tanks:[],pus:[],scores:[0,0],roundover:false,playing:false,roundWinner:null});
+      },500);
+    }
   }
-}
 
-// ── Score card icons ──────────────────────────────────────────────────────────
-function drawIcons() {
-  drawTank(document.getElementById('icon1').getContext('2d'), P1_COL, 19, 13, 0);
-  drawTank(document.getElementById('icon2').getContext('2d'), P2_COL, 19, 13, 0);
-}
-drawIcons();
-
-// ── Kontra GameLoop ───────────────────────────────────────────────────────────
-const loop = kontra.GameLoop({
-  update() {
-    if (state === 'playing') {
-      tank1.update(keys);
-      tank2.update(keys);
-      resolveHits();
+  function setOnlineLabels(amHost){
+    if(amHost){
+      document.getElementById('p1lbl').textContent='ESDF · Q (YOU)';
+      document.getElementById('p2lbl').textContent='REMOTE';
+      document.getElementById('c1h').textContent='YOU: ESDF · Q fire';
+      document.getElementById('c2h').textContent='Opponent: remote';
+    }else{
+      document.getElementById('p1lbl').textContent='REMOTE';
+      document.getElementById('p2lbl').textContent='ARROWS · M (YOU)';
+      document.getElementById('c1h').textContent='Opponent: remote';
+      document.getElementById('c2h').textContent='YOU: Arrows · M fire';
     }
-    if (state === 'roundover') {
-      if (--roundOverTimer <= 0) startRound();
-    }
-    updateParticles();
-  },
-  render() {
-    ctx.clearRect(0, 0, CW, CH);
-    drawMaze();
-    if (tank1) tank1.draw();
-    if (tank2) tank2.draw();
-    drawParticles();
+    document.getElementById('modeLbl').textContent='ONLINE';
   }
-});
-loop.start();
 
-// ── Input ─────────────────────────────────────────────────────────────────────
-document.addEventListener('keydown', e => {
-  keys[e.key] = true;
-  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
-  if (e.key === ' ' && state === 'menu') startRound();
-});
-document.addEventListener('keyup', e => { keys[e.key] = false; });
+  function showLobby(){
+    stopNet();
+    gState='lobby';
+    document.getElementById('waiting').classList.remove('on');
+    document.getElementById('lobby').style.display='flex';
+  }
+
+  // ── UI ─────────────────────────────────────────────────
+  document.getElementById('onlineBtn').onclick=()=>{
+    gState='waiting';
+    document.getElementById('lobby').style.display='none';
+    document.getElementById('waiting').classList.add('on');
+    startMatchmaking();
+  };
+  document.getElementById('localBtn').onclick=()=>{
+    isLocal=true;isHost=false;scores=[0,0];
+    document.getElementById('p1lbl').textContent='ESDF · Q';
+    document.getElementById('p2lbl').textContent='ARROWS · M';
+    document.getElementById('c1h').textContent='P1: ESDF · Q fire';
+    document.getElementById('c2h').textContent='P2: Arrows · M fire';
+    document.getElementById('modeLbl').textContent='LOCAL 2P';
+    initRound();startGame();
+  };
+  document.getElementById('cancelBtn').onclick=()=>showLobby();
 </script>
 </body>
 </html>
