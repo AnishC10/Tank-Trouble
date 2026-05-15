@@ -19,8 +19,10 @@ class Bullet {
   constructor(x, y, angle, ownerIndex, big = false) {
     this.x        = x;
     this.y        = y;
-    this.vx       = Math.cos(angle) * BULLET_SPEED;
-    this.vy       = Math.sin(angle) * BULLET_SPEED;
+    // kontra.Vector: direction from angle, scaled to bullet speed
+    const bdir = kontra.Vector(Math.cos(angle), Math.sin(angle));
+    this.vx    = bdir.x * BULLET_SPEED;
+    this.vy    = bdir.y * BULLET_SPEED;
     this.owner    = ownerIndex;
     this.bounces  = 0;
     this.age      = 0;
@@ -57,12 +59,12 @@ class Bullet {
     const pad          = this.radius + 3;
     if (isHorizontal) {
       return this.x >= Math.min(wall.x1, wall.x2) &&
-             this.x <= Math.max(wall.x1, wall.x2) &&
-             Math.abs(this.y - wall.y1) < pad;
+          this.x <= Math.max(wall.x1, wall.x2) &&
+          Math.abs(this.y - wall.y1) < pad;
     } else {
       return this.y >= Math.min(wall.y1, wall.y2) &&
-             this.y <= Math.max(wall.y1, wall.y2) &&
-             Math.abs(this.x - wall.x1) < pad;
+          this.y <= Math.max(wall.y1, wall.y2) &&
+          Math.abs(this.x - wall.x1) < pad;
     }
   }
 
@@ -269,12 +271,12 @@ function missileHitsWall(missile, wall) {
   const pad          = missile.radius + 3;
   if (isHorizontal) {
     return missile.x >= Math.min(wall.x1, wall.x2) &&
-           missile.x <= Math.max(wall.x1, wall.x2) &&
-           Math.abs(missile.y - wall.y1) < pad;
+        missile.x <= Math.max(wall.x1, wall.x2) &&
+        Math.abs(missile.y - wall.y1) < pad;
   } else {
     return missile.y >= Math.min(wall.y1, wall.y2) &&
-           missile.y <= Math.max(wall.y1, wall.y2) &&
-           Math.abs(missile.x - wall.x1) < pad;
+        missile.y <= Math.max(wall.y1, wall.y2) &&
+        Math.abs(missile.x - wall.x1) < pad;
   }
 }
 
@@ -317,8 +319,10 @@ class Missile {
       this.angle += Math.sign(delta) * Math.min(Math.abs(delta), 2.8 * dt);
     }
 
-    this.x += Math.cos(this.angle) * this.speed * dt;
-    this.y += Math.sin(this.angle) * this.speed * dt;
+    // kontra.Vector: missile velocity direction after homing adjustment
+    const mdir = kontra.Vector(Math.cos(this.angle), Math.sin(this.angle));
+    this.x += mdir.x * this.speed * dt;
+    this.y += mdir.y * this.speed * dt;
 
     // Bounce off walls
     for (const wall of walls) {

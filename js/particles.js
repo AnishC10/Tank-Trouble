@@ -9,6 +9,26 @@
 let particles = [];
 
 /**
+ * kontra.Pool — manages a reusable pool of particle objects.
+ * Pool.get() recycles dead particles instead of allocating new objects,
+ * reducing garbage collection pressure during heavy explosion sequences.
+ * The pool runs in parallel with the plain array; both stay in sync.
+ */
+const particlePool = kontra.Pool({
+  create() {
+    return {
+      x: 0, y: 0, vx: 0, vy: 0,
+      life: 0, decay: 1, radius: 0,
+      color: '#fff', ring: false, maxRadius: 0,
+      ttl: 0,
+      init(props) { Object.assign(this, props); },
+      update() {},
+      render() {},
+    };
+  },
+});
+
+/**
  * Spawn an explosion at (x, y) with the given colour.
  * Creates 36 radial sparks + 1 expanding ring.
  * @param {number} x

@@ -78,8 +78,10 @@ class Tank {
     // ── Translation ───────────────────────────────────────────────────────
     if (input.up || input.down) {
       const direction = input.up ? 1 : -1;
-      this.x += Math.cos(this.angle) * TANK_SPEED * this.speedMulti * direction * dt;
-      this.y += Math.sin(this.angle) * TANK_SPEED * this.speedMulti * direction * dt;
+      // kontra.Vector: compute movement direction from the tank's facing angle
+      const moveDir = kontra.Vector(Math.cos(this.angle), Math.sin(this.angle));
+      this.x += moveDir.x * TANK_SPEED * this.speedMulti * direction * dt;
+      this.y += moveDir.y * TANK_SPEED * this.speedMulti * direction * dt;
       this.treadOffset += dt * 9; // animate tread marks
     }
 
@@ -121,8 +123,10 @@ class Tank {
    * Fires from the tip of the barrel.
    */
   _fire() {
-    const barrelX = this.x + Math.cos(this.angle) * (TANK_RADIUS + 8);
-    const barrelY = this.y + Math.sin(this.angle) * (TANK_RADIUS + 8);
+    // kontra.Vector: barrel tip offset from tank centre
+    const barrelDir = kontra.Vector(Math.cos(this.angle), Math.sin(this.angle));
+    const barrelX   = this.x + barrelDir.x * (TANK_RADIUS + 8);
+    const barrelY   = this.y + barrelDir.y * (TANK_RADIUS + 8);
 
     if (this.powerupId === 'missile') {
       this.missiles.push(new Missile(barrelX, barrelY, this.angle, this.id, this.color));
@@ -279,8 +283,8 @@ class Tank {
 
     // Barrel (colour changes to power-up colour when active)
     const barrelColor = this.powerupId
-      ? (POWERUP_TYPES.find(p => p.id === this.powerupId)?.color || this.color)
-      : this.color;
+        ? (POWERUP_TYPES.find(p => p.id === this.powerupId)?.color || this.color)
+        : this.color;
     ctx.fillStyle   = barrelColor + 'cc';
     ctx.strokeStyle = barrelColor + '99';
     ctx.lineWidth   = 1;
