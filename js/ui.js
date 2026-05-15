@@ -34,3 +34,11 @@ document.getElementById('audioBtn').onclick = () => {
   initAudio(); // initialise if not yet started
   toggleMute();
 };
+
+// kontra.onKey() — registers keyboard shortcuts via Kontra's key system
+// Escape returns to the lobby from any game screen
+kontra.onKey('Escape', () => {
+  if (gamePhase === 'playing' || gamePhase === 'roundover' || gamePhase === 'waiting') {
+    showLobby();
+  }
+});
