@@ -8,6 +8,17 @@
 const { canvas, context } = kontra.init('gc');
 
 /**
+ * kontra.Scene — groups tanks and powerups so Kontra manages their lifecycle.
+ * scene.update(dt) propagates to every object in the scene automatically.
+ * Rebuilt each round via resetScene().
+ */
+let gameScene = kontra.Scene({ id: 'game', objects: [] });
+
+function resetScene() {
+  gameScene = kontra.Scene({ id: 'game', objects: [...tanks, ...powerupItems] });
+}
+
+/**
  * The Kontra game loop — the heart of the engine integration.
  * kontra.GameLoop calls update(dt) then render() every frame.
  */
@@ -107,6 +118,7 @@ let networkSendTimer = 0;
 /** Transition to the in-game view and start the Kontra loop. */
 function startGame() {
   gamePhase = 'playing';
+  resetScene(); // wire objects into Kontra Scene
   document.getElementById('lobby').style.display   = 'none';
   document.getElementById('waiting').classList.remove('on');
   document.getElementById('hud').classList.add('on');
