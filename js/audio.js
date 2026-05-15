@@ -7,7 +7,7 @@
    • AudioContext created once (resumed on first user gesture per browser policy)
    • audioMuted flag toggles the master gain node
    • bgMusic() — looping chiptune arpeggio on a small OscillatorNode schedule
-   • sfxShoot(), sfxExplosion(), sfxPickup(), sfxBounce() — one-shot bursts
+   • sfxShoot(), sfxExplosion(), sfxPickup(), sfxBounce(), sfxRoundEnd() — one-shot bursts
 ─────────────────────────────────────────────────────────────────────────── */
 let audioCtx = null;    // created lazily on first interaction
 let masterGain = null;  // controls overall volume
@@ -188,4 +188,42 @@ function sfxBounce() {
   gain.connect(masterGain);
   osc.start(now);
   osc.stop(now + 0.06);
+}
+
+/**
+ * Round end buzzer SFX — dramatic alarm sound when a player dies/round ends.
+ * Creates an urgent buzzer with four quick pulses followed by a descending tone.
+ * Perfect for signaling the end of a round!
+ */
+function sfxRoundEnd() {
+  if (!audioCtx || audioMuted) return;
+  const now = audioCtx.currentTime;
+
+  // ── First buzzer pulse (high-pitched, pulsing) ──────────────────────
+  for (let pulse = 0; pulse < 4; pulse++) {
+    const pulseTime = now + pulse * 0.08;
+    const osc1      = audioCtx.createOscillator();
+    const gain1     = audioCtx.createGain();
+    osc1.type       = 'square';
+    osc1.frequency.setValueAtTime(600, pulseTime);
+    gain1.gain.setValueAtTime(0.15, pulseTime);
+    gain1.gain.linearRampToValueAtTime(0, pulseTime + 0.07);
+    osc1.connect(gain1);
+    gain1.connect(masterGain);
+    osc1.start(pulseTime);
+    osc1.stop(pulseTime + 0.07);
+  }
+
+  // ── Second descending tone (lower tone, longer, more dramatic) ──────
+  const osc2  = audioCtx.createOscillator();
+  const gain2 = audioCtx.createGain();
+  osc2.type   = 'square';
+  osc2.frequency.setValueAtTime(450, now + 0.35);
+  osc2.frequency.exponentialRampToValueAtTime(300, now + 0.65);
+  gain2.gain.setValueAtTime(0.12, now + 0.35);
+  gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+  osc2.connect(gain2);
+  gain2.connect(masterGain);
+  osc2.start(now + 0.35);
+  osc2.stop(now + 0.66);
 }
