@@ -1,6 +1,6 @@
 # 🎯 Tank Trouble
 
-A real-time browser-based multiplayer tank battle game built for CS181. Two players fight through a procedurally generated maze — bullets bounce, power-ups spawn, and only one tank survives each round.
+A real-time browser-based multiplayer tank battle game built for CISC181. Two players fight through a procedurally generated maze — bullets bounce, power-ups spawn, and only one tank survives each round.
 
 **No build step. No external assets. No audio files. Open a link and play.**
 
@@ -280,10 +280,10 @@ Share the Netlify URL — online play works worldwide with no local server neede
 | Name | GitHub |
 |---|---|
 | Anish Chakraborty | [@AnishC10](https://github.com/AnishC10) |
-| Aditya Rustagi | — |
-| Tushar Janarthanan Ramesh Babu | — |
+| Aditya Rustagi | [Aditya-Rustagi-1](https://github.com/Aditya-Rustagi-1) |
+| Tushar Janarthanan Ramesh Babu | [@Titanaboa596](https://github.com/Titanaboa596) |
 
-**CS181 — Advanced JavaScript Game Development**
+**CISC181 — Advanced JavaScript Game Development**
 
 **Tech stack:**
 
