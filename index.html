@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TANK TROUBLE</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Rajdhani:wght@400;600&display=swap" rel="stylesheet">
+
+  <!-- Game styles -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- Kontra.js — required game engine (CS181) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/kontra/9.1.0/kontra.min.js"></script>
+</head>
+<body>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       LOBBY SCREEN — shown on first load
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <div id="lobby">
+    <div style="text-align:center">
+      <div class="game-title">TANK TROUBLE</div>
+      <div class="game-subtitle">Online Multiplayer · Power-Ups · Bullets bounce 20×</div>
+    </div>
+    <button class="btn btn-gold" id="onlineBtn"
+            style="width:260px;font-size:.9rem;padding:16px 20px;">
+      🌐 Play Online
+    </button>
+    <div class="divider-or">or</div>
+    <button class="btn btn-ghost" id="localBtn" style="width:200px;">🕹 Local 2-Player</button>
+    <div class="lobby-hint">
+      Click <b style="color:var(--accent)">Play Online</b> — if someone else is waiting
+      you'll connect instantly. Otherwise wait for the next player who opens this page.
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       WAITING / MATCHMAKING SCREEN — shown while connecting online
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <div id="waiting">
+    <div class="wait-title" id="waitTitle">Connecting…</div>
+
+    <!-- Step-by-step connection diagnostics -->
+    <div id="diagBox">
+      <div class="diag-row" id="d-ws">
+        <span class="diag-icon">⏳</span>
+        <span class="diag-label">WebSocket server connection</span>
+        <span class="diag-status" id="ds-ws">waiting…</span>
+      </div>
+      <div class="diag-row" id="d-role">
+        <span class="diag-icon">⏳</span>
+        <span class="diag-label">Player role (host or joiner)</span>
+        <span class="diag-status" id="ds-role">waiting…</span>
+      </div>
+      <div class="diag-row" id="d-lobby">
+        <span class="diag-icon">⏳</span>
+        <span class="diag-label">Lobby — finding opponent</span>
+        <span class="diag-status" id="ds-lobby">waiting…</span>
+      </div>
+      <div class="diag-row" id="d-game">
+        <span class="diag-icon">⏳</span>
+        <span class="diag-label">Game start</span>
+        <span class="diag-status" id="ds-game">waiting…</span>
+      </div>
+    </div>
+
+    <div id="waitMsg"></div>
+    <button class="btn btn-ghost" id="cancelBtn" style="margin-top:4px;">Cancel</button>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       HUD — shown during gameplay
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <div id="hud">
+    <!-- Top bar: player info, scores, ping -->
+    <div class="hud-top">
+      <div class="player-info">
+        <div class="player-dot" style="background:var(--p1);box-shadow:0 0 7px var(--p1)"></div>
+        <div>
+          <div style="color:var(--p1)">PLAYER 1</div>
+          <div class="player-label" id="p1lbl">ESDF · Q</div>
+        </div>
+        <div class="player-score" style="color:var(--p1)" id="sc1">0</div>
+        <div class="pu-hud" id="pu1"></div>
+      </div>
+
+      <div class="hud-center">
+        TANK TROUBLE<br>
+        <span id="pingEl" style="font-size:.58rem"></span>
+      </div>
+
+      <div class="player-info">
+        <div class="pu-hud" id="pu2"></div>
+        <div class="player-score" style="color:var(--p2)" id="sc2">0</div>
+        <div style="text-align:right">
+          <div style="color:var(--p2)">PLAYER 2</div>
+          <div class="player-label" id="p2lbl">ARROWS · M</div>
+        </div>
+        <div class="player-dot" style="background:var(--p2);box-shadow:0 0 7px var(--p2)"></div>
+      </div>
+    </div>
+
+    <!-- Kontra.js renders into this canvas -->
+    <canvas id="gc" width="780" height="520"></canvas>
+
+    <!-- Bottom bar: control hints, mode label -->
+    <div class="hud-bottom">
+      <span id="c1h" style="color:#003d4a">P1: ESDF move · Q fire</span>
+      <span id="modeLbl">LOCAL</span>
+      <span id="c2h" style="color:#4a0020">P2: Arrows · M fire</span>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       ROUND-OVER OVERLAY — shown briefly between rounds
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <div id="roundOverlay">
+    <div class="result-box">
+      <div class="result-winner" id="rwText"></div>
+      <div class="result-sub">Next round starting…</div>
+    </div>
+  </div>
+
+  <!-- Mute / unmute toggle (always visible) -->
+  <button id="audioBtn" title="Toggle audio">🔊</button>
+
+  <!-- ════════════════════════════════════════════════════════════════════════
+       GAME SCRIPTS — loaded in dependency order:
+         constants   → shared magic-number constants and key maps
+         audio       → Web Audio API: background music + sound effects
+         maze        → DFS maze generator (Technical Component D)
+         particles   → explosion particle system
+         powerups    → PowerUpItem class and type definitions
+         projectiles → Bullet, Laser, Missile classes
+         tank        → Tank class (uses Kontra.Sprite internally)
+         drawing     → maze renderer and roundRect helper
+         gamestate   → round logic, scoring, spawning
+         gameloop    → Kontra.GameLoop update/render
+         network     → FastAPI WebSocket matchmaking (Technical Component G)
+         ui          → button event wiring
+  ═════════════════════════════════════════════════════════════════════════ -->
+  <script src="js/constants.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/maze.js"></script>
+  <script src="js/particles.js"></script>
+  <script src="js/powerups.js"></script>
+  <script src="js/projectiles.js"></script>
+  <script src="js/tank.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/gamestate.js"></script>
+  <script src="js/gameloop.js"></script>
+  <script src="js/network.js"></script>
+  <script src="js/ui.js"></script>
+
+</body>
+</html>

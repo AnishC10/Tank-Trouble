@@ -1,0 +1,282 @@
+/* ── CSS custom properties (design tokens) ────────────────────────────── */
+:root {
+  --bg:       #080c14;
+  --panel:    #0d1320;
+  --border:   #1e2d45;
+  --p1:       #00e5ff;   /* Player 1 cyan */
+  --p2:       #ff3d71;   /* Player 2 red  */
+  --accent:   #f5c518;   /* Gold accent    */
+  --textdim:  #4a6080;
+  --text:     #c8d8f0;
+}
+
+/* ── Reset & base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+}
+body {
+  font-family: 'Rajdhani', sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+/* Scanline overlay for retro CRT feel */
+body::after {
+  content: '';
+  position: fixed; inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,.025) 2px, rgba(0,0,0,.025) 4px
+  );
+}
+
+/* ── Animations ───────────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: .25; }
+}
+@keyframes dotPulse {
+  0%, 80%, 100% { transform: scale(0); opacity: .3; }
+  40%           { transform: scale(1); opacity: 1; }
+}
+
+/* ── Utility classes ──────────────────────────────────────────────────── */
+.blink { animation: blink 1.4s ease-in-out infinite; }
+
+/* ── Shared button styles ─────────────────────────────────────────────── */
+.btn {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .75rem;
+  letter-spacing: 2px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  text-transform: uppercase;
+  font-weight: 700;
+  transition: all .15s;
+}
+.btn-gold {
+  background: var(--accent);
+  color: #000;
+  box-shadow: 0 0 18px rgba(245,197,24,.2);
+}
+.btn-gold:hover { background: #ffd740; box-shadow: 0 0 28px rgba(245,197,24,.4); }
+.btn-ghost {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { border-color: rgba(200,216,240,.4); }
+
+/* ── Lobby screen ─────────────────────────────────────────────────────── */
+#lobby {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  animation: fadeUp .5s ease;
+}
+.game-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.8rem;
+  font-weight: 900;
+  color: var(--accent);
+  letter-spacing: 8px;
+  text-shadow: 0 0 30px rgba(245,197,24,.5), 0 0 60px rgba(245,197,24,.15);
+}
+.game-subtitle {
+  font-size: .85rem;
+  letter-spacing: 4px;
+  color: var(--textdim);
+  text-transform: uppercase;
+  text-align: center;
+}
+.divider-or {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--textdim);
+  font-size: .72rem;
+  letter-spacing: 2px;
+  width: 280px;
+}
+.divider-or::before, .divider-or::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+.lobby-hint {
+  font-size: .72rem;
+  color: var(--textdim);
+  text-align: center;
+  max-width: 340px;
+  line-height: 1.9;
+}
+
+/* ── Waiting / matchmaking screen ─────────────────────────────────────── */
+#waiting {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  animation: fadeUp .3s ease;
+}
+#waiting.on { display: flex; }
+.wait-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .9rem;
+  color: var(--textdim);
+  letter-spacing: 4px;
+}
+
+/* Diagnostic step rows (ws/role/lobby/game) */
+#diagBox {
+  background: #0a1220;
+  border: 1px solid #1e2d45;
+  border-radius: 10px;
+  padding: 18px 24px;
+  width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0;
+}
+.diag-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: .78rem;
+  padding: 4px 0;
+  border-bottom: 1px solid #0d1825;
+}
+.diag-row:last-child { border-bottom: none; }
+.diag-icon  { font-size: 1rem; width: 20px; text-align: center; flex-shrink: 0; }
+.diag-label { color: #4a6080; flex: 1; letter-spacing: .5px; }
+.diag-status {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .62rem;
+  letter-spacing: 1px;
+  text-align: right;
+}
+.ds-ok   { color: #4caf50; }
+.ds-fail { color: #ff3d71; }
+.ds-spin { color: #f5c518; }
+
+/* ── HUD (in-game header + footer) ───────────────────────────────────── */
+#hud { display: none; width: 780px; flex-direction: column; }
+#hud.on { display: flex; }
+
+.hud-top {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  padding: 9px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: .7rem;
+  letter-spacing: 2px;
+}
+.player-dot  { width: 9px; height: 9px; border-radius: 50%; }
+.player-score { font-size: 1.45rem; font-weight: 700; min-width: 26px; text-align: center; }
+.player-label { font-size: .6rem; color: var(--textdim); letter-spacing: 1px; }
+.hud-center {
+  font-family: 'Orbitron', sans-serif;
+  font-size: .62rem;
+  letter-spacing: 3px;
+  color: var(--textdim);
+  text-align: center;
+  line-height: 1.8;
+}
+
+canvas { display: block; border-left: 1px solid var(--border); border-right: 1px solid var(--border); }
+
+.hud-bottom {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  padding: 6px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .65rem;
+  color: var(--textdim);
+  letter-spacing: 1px;
+}
+
+/* Power-up HUD slots */
+.pu-hud { display: flex; align-items: center; gap: 5px; }
+.pu-slot {
+  width: 26px; height: 26px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: .85rem;
+  background: #0a1220;
+}
+.pu-slot.active { border-color: var(--accent); background: #1a2530; }
+
+/* ── Round-over overlay ───────────────────────────────────────────────── */
+#roundOverlay {
+  position: fixed; inset: 0;
+  background: rgba(4,8,16,.78);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(6px);
+}
+#roundOverlay.on { display: flex; }
+.result-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 38px 60px;
+  text-align: center;
+  box-shadow: 0 0 80px rgba(0,0,0,.9);
+}
+.result-winner {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+.result-sub { font-size: .88rem; color: var(--textdim); letter-spacing: 2px; }
+
+/* Audio toggle button */
+#audioBtn {
+  position: fixed;
+  top: 16px; right: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--textdim);
+  font-size: 1.1rem;
+  width: 36px; height: 36px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  transition: border-color .15s;
+}
+#audioBtn:hover { border-color: var(--accent); }
