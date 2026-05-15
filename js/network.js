@@ -59,7 +59,7 @@ function getWebSocketUrl() {
                  location.hostname === '')
                 ? 'localhost:8081'
                 : location.host;
-  return proto + '://' + host + '/ws';
+  return 'wss://csfinal1-production.up.railway.app/ws';
 }
 
 /**
